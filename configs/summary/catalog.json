@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "configurations": {
+    "qwen-daily-v1": {
+      "path": "experiments/qwen-daily-v1.json",
+      "sha256": "9870361864611b8e7d2e21b496c11136ccac468d8a015e7fbcd8ad50a47db50e"
+    },
+    "qwen-daily-v2": {
+      "path": "experiments/qwen-daily-v2.json",
+      "sha256": "1fb4e7daaaa8a0903a542c02f97968ddd7168d6814938e30b5f423a7d58cbd09"
+    },
+    "qwen-daily-v3": {
+      "path": "experiments/qwen-daily-v3.json",
+      "sha256": "8f6117f59c4090a4984829cc29b97d5ed822721e210babdf8e61fc3c21f39eff"
+    },
+    "qwen-daily-v4": {
+      "path": "experiments/qwen-daily-v4.json",
+      "sha256": "0640b750946fa206883ef85fac65abd2f604b9ca7ca160a01615b69ac6f16b58"
+    },
+    "qwen-daily-v5": {
+      "path": "experiments/qwen-daily-v5.json",
+      "sha256": "569a48f8fe19d8870bc8c3f8f87bc27c41fa9e8f42ee90560735d1d3efa511c3"
+    },
+    "qwen-daily-v6": {
+      "path": "experiments/qwen-daily-v6.json",
+      "sha256": "ef435bb62670ce8691d0b4d46e23e655a0e3d1c8aca7130d5e5ef147f0ea3d64"
+    },
+    "qwen-daily-v7": {
+      "path": "experiments/qwen-daily-v7.json",
+      "sha256": "769c5304e3f230178c751bb4aba60ae346bd6724a0472f13dcb55c59c19a3b47"
+    },
+    "daily-summary-v1": {
+      "path": "daily-summary-v1.json",
+      "sha256": "342f3f4008deb00ebca76750d10d5bb7467c435ecb8fb14e21f34930f5e539cd"
+    }
+  }
+}

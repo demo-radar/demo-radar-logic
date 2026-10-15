@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="410.4pt" viewBox="0 0 864 410.4" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-13T11:15:08.748634</dc:date>
+    <dc:description>Source: docs/presentation/insights.md, Two examples selected during review, 29 September 2026. Real reviewed animal-welfare/pig-farming example paraphrased. Historical/reviewed topic environment; NLI suggested human-rights. Derived HR tag score 0.482, neutral output 0.698, differently normalized measures, not probabilities of correctness. Separate invented diagnostic is not shown here.</dc:description>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 410.4 
+L 864 410.4 
+L 864 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 28px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20242a" x="33.8688" y="44.914665" transform="rotate(-0 33.8688 44.914665)">Protect Pigs</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 21px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20242a" x="33.8688" y="85.888879" transform="rotate(-0 33.8688 85.888879)">Animal welfare and awareness of pig farming</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 17px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #64748b" x="42.1632" y="154.80288" transform="rotate(-0 42.1632 154.80288)">Reviewed topic</text>
+   </g>
+   <g id="text_4">
+    <g id="patch_2">
+     <path d="M 42.1632 227.425139 
+L 221.960075 227.425139 
+Q 230.710075 227.425139 230.710075 218.675139 
+L 230.710075 193.673186 
+Q 230.710075 184.923186 221.960075 184.923186 
+L 42.1632 184.923186 
+Q 33.4132 184.923186 33.4132 193.673186 
+L 33.4132 218.675139 
+Q 33.4132 227.425139 42.1632 227.425139 
+z
+" style="fill: #dceee3; stroke: #65a97f; stroke-linejoin: miter"/>
+    </g>
+    <text style="font-weight: 700; font-size: 25px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20242a" x="42.1632" y="212.66928" transform="rotate(-0 42.1632 212.66928)">Environment</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 17px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #64748b" x="490.0608" y="154.80288" transform="rotate(-0 490.0608 154.80288)">NLI suggestion</text>
+   </g>
+   <g id="text_6">
+    <g id="patch_3">
+     <path d="M 490.0608 227.425139 
+L 681.619394 227.425139 
+Q 690.369394 227.425139 690.369394 218.675139 
+L 690.369394 193.673186 
+Q 690.369394 184.923186 681.619394 184.923186 
+L 490.0608 184.923186 
+Q 481.3108 184.923186 481.3108 193.673186 
+L 481.3108 218.675139 
+Q 481.3108 227.425139 490.0608 227.425139 
+z
+" style="fill: #ebdcf7; stroke: #ad7ae2; stroke-linejoin: miter"/>
+    </g>
+    <text style="font-weight: 700; font-size: 25px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20242a" x="490.0608" y="212.66928" transform="rotate(-0 490.0608 212.66928)">Human rights</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 17px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20242a" x="490.0608" y="274.39344" transform="rotate(-0 490.0608 274.39344)">Derived tag score: 0.482</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 17px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20242a" x="490.0608" y="305.25552" transform="rotate(-0 490.0608 305.25552)">Neutral output: 0.698</text>
+   </g>
+   <g id="text_9">
+    <text style="font-weight: 700; font-size: 16px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20242a" x="42.1632" y="355.4064" transform="rotate(-0 42.1632 355.4064)">The derived score excludes neutral. It is not a probability that the tag is correct.</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 11px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #64748b" x="42.1632" y="390.12624" transform="rotate(-0 42.1632 390.12624)">Real reviewed example, title paraphrased. Source: insights.md, 29 September NLI review.</text>
+   </g>
+  </g>
+ </g>
+</svg>

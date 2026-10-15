@@ -1,0 +1,102 @@
+{
+  "version": "news-brief-v1",
+  "kind": "worked-example",
+  "note": "Worked public source-and-answer example. Six titles are supplied; the answer selects four for topics and a different one for the focus, without classifying the omitted title. Only the final user snapshot supplies facts for a real answer. EXAMPLE IDs are invalid real citations.",
+  "input": {
+    "example_only": true,
+    "language": "de",
+    "events": [
+      {
+        "id": "EXAMPLE-CLIMATE",
+        "title": "Öffentliche Foto- und Protestaktion: Energiewende  verteidigen statt fossil abhängig bleiben (vom 08.10. bis 10.10.2026 - täglich)"
+      },
+      {
+        "id": "EXAMPLE-HOUSING",
+        "title": ",,Vergesellschaftung von Wohnraum und darüber hinaus"
+      },
+      {
+        "id": "EXAMPLE-IRAN",
+        "title": "Sitzstreik und Mahnwache für Menschenrechte im Iran, sowie für eine Neubewertung der diplomatischen Beziehungen   (vom 02.10. bis 30.12.2026 - täglich)"
+      },
+      {
+        "id": "EXAMPLE-RELIGION",
+        "title": "Ohne JESUS kein Frieden (vom 10.01.2026 bis 31.12.2027 - jeweils Sa.)"
+      },
+      {
+        "id": "EXAMPLE-ANIMALS",
+        "title": "LasstDieKuhLos - Anbindehaltung und anderer Qualhaltungen abschaffen!"
+      },
+      {
+        "id": "EXAMPLE-MOBILITY",
+        "title": "Verkehrssicherheit von Kindern & Jugendlichen, Klimaschutz und Mobilitätswende"
+      }
+    ],
+    "available_event_ids": [
+      "EXAMPLE-CLIMATE",
+      "EXAMPLE-HOUSING",
+      "EXAMPLE-IRAN",
+      "EXAMPLE-RELIGION",
+      "EXAMPLE-ANIMALS",
+      "EXAMPLE-MOBILITY"
+    ]
+  },
+  "output": {
+    "overview": [
+      {
+        "text": "Energiewende, Wohnraum und Menschenrechte beschäftigen mehrere angemeldete Proteste.",
+        "event_ids": [
+          "EXAMPLE-CLIMATE",
+          "EXAMPLE-HOUSING",
+          "EXAMPLE-IRAN"
+        ]
+      }
+    ],
+    "topics": [
+      {
+        "label": "Klima",
+        "text": "Eine Foto- und Protestaktion setzt sich für die Energiewende ein und wendet sich gegen fossile Abhängigkeit.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-CLIMATE"
+        ]
+      },
+      {
+        "label": "Wohnen",
+        "text": "Eine Aktion fordert, Wohnraum in gemeinschaftliches Eigentum zu überführen.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-HOUSING"
+        ]
+      },
+      {
+        "label": "Menschenrechte",
+        "text": "Eine Mahnwache fordert Menschenrechte im Iran und eine Neubewertung der diplomatischen Beziehungen.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-IRAN"
+        ]
+      },
+      {
+        "label": "Religion",
+        "text": "Religiöse Anliegen sind ebenfalls vertreten, etwa mit dem Motto „Ohne JESUS kein Frieden“.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-RELIGION"
+        ]
+      }
+    ],
+    "highlight": {
+      "title": "Gegen das Anbinden von Rindern",
+      "text": "„LasstDieKuhLos“ fordert: Rinder sollen nicht angebunden gehalten werden.",
+      "event_ids": [
+        "EXAMPLE-ANIMALS"
+      ]
+    },
+    "limitations": [
+      "Eine Auswahl angemeldeter Anliegen."
+    ]
+  },
+  "protected_phrases": [
+    "LasstDieKuhLos"
+  ]
+}

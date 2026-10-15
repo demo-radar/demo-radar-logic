@@ -1,0 +1,6 @@
+{
+  "request_id": "synthetic-request-001",
+  "job_id": "synthetic-job-001",
+  "source_version": "synthetic-source-v1",
+  "event": {"id": "synthetic-demo-001", "title": "Für sichere Radwege"}
+}

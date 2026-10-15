@@ -1,0 +1,38 @@
+{
+  "source": "docs/tagging-rubric.md",
+  "source_sha256": "0127f65668271a6bc32ec6de32eb68c146228696ba6ecb69fbaf1a46cdba70bd",
+  "rendering": "notebooks/prompts/rubric-v3-operational-v1.md",
+  "rendering_sha256": "5ac92075b3813c57e613bd829d424ac902ee2474cf551b130f57e856b7093666",
+  "meaning_change": false,
+  "examples_changed": false,
+  "verbatim_sections": [
+    {
+      "section": "Current selection instructions",
+      "source_start": "## How to choose tags",
+      "source_end": "## The 12 current topic tags",
+      "sha256": "3046a027332515499677df89778bb9a2dc8257810a5888e8b63ee5ae24f567be"
+    },
+    {
+      "section": "Definitions and examples",
+      "source_start": "## The 12 current topic tags",
+      "source_end": "## Common overlaps to settle consistently",
+      "sha256": "23414057eacdd59fd96ede225da5cbf4c3c130a07453a3bda9cd622fb9cc5c35"
+    },
+    {
+      "section": "Overlap rules",
+      "source_start": "## Common overlaps to settle consistently",
+      "source_end": "## How version 1 was prepared",
+      "sha256": "03cd6b43e847434bf3882876aa2cbf2fced882c895de23baa56f31860b383415"
+    }
+  ],
+  "other_verbatim_content": [
+    "Revised scope decision paragraph",
+    "All five development-review decisions"
+  ],
+  "excluded_content": [
+    "Approval history and version provenance",
+    "Instructions about reviewing final datasets and versioning labels",
+    "Numerical ties for scored classifiers (current output remains strict two tags)"
+  ],
+  "retained_procedural_text": "Selection and overlap sections are copied verbatim, including some human-review prose, to avoid inadvertently changing meaning. This is conservative removal of history, not a new concise paraphrase."
+}

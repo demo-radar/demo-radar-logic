@@ -1,0 +1,38 @@
+services:
+  demologic:
+    image: ${DEMOLOGIC_IMAGE:-demologic:local}
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      DEMOLOGIC_SERVICE_TOKEN: ${DEMOLOGIC_SERVICE_TOKEN:?Use --env-file service/.env with a private service token}
+      DEMOLOGIC_SUMMARY_CONFIG_ID: ${DEMOLOGIC_SUMMARY_CONFIG_ID:-daily-summary-v1}
+      DEMOLOGIC_SUMMARY_MAX_ATTEMPTS: ${DEMOLOGIC_SUMMARY_MAX_ATTEMPTS:-3}
+      DEMOLOGIC_SUMMARY_ENABLED: ${DEMOLOGIC_SUMMARY_ENABLED:-false}
+      DEMOLOGIC_SUMMARY_TIMEOUT_SECONDS: ${DEMOLOGIC_SUMMARY_TIMEOUT_SECONDS:-60}
+      DEMOLOGIC_CONFIG_ID: ${DEMOLOGIC_CONFIG_ID:-qwen-v4-v1}
+      DEMOLOGIC_MAX_ATTEMPTS_PER_EVENT: ${DEMOLOGIC_MAX_ATTEMPTS_PER_EVENT:-3}
+      DEMOLOGIC_MODE: ${DEMOLOGIC_MODE:-demo}
+      DEMOLOGIC_DATABASE: /app/data/service/inference.sqlite
+      DEMOLOGIC_FREE_TIER_CONFIRMED: ${DEMOLOGIC_FREE_TIER_CONFIRMED:-false}
+      DEMOLOGIC_TIMEOUT_SECONDS: ${DEMOLOGIC_TIMEOUT_SECONDS:-60}
+      DEMOLOGIC_MIN_INTERVAL_SECONDS: ${DEMOLOGIC_MIN_INTERVAL_SECONDS:-1}
+      HETZNER_API_KEY: ${HETZNER_API_KEY:-}
+    volumes:
+      - inference-state:/app/data/service
+    init: true
+    stop_grace_period: 90s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  inference-state:

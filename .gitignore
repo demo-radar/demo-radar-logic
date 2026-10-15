@@ -1,0 +1,51 @@
+# Python and local tooling
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+*.executed.ipynb
+*.nbconvert.ipynb
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Private datasets, predictions, models, and reports
+/data/*
+!/data/.gitkeep
+/reports/*
+!/reports/.gitkeep
+/artifacts/*
+!/artifacts/.gitkeep
+*.csv
+*.jsonl
+*.parquet
+*.pkl
+*.joblib
+*.pt
+*.onnx
+*.safetensors
+*.sqlite
+*.db
+*.log
+
+# Synthetic fixtures may be published after review
+!examples/synthetic/**/*.csv
+!examples/synthetic/**/*.jsonl
+
+# Editor and operating system
+.DS_Store
+.idea/
+.vscode/
+
+# Generated slide exports: keep Markdown and SVG sources in Git
+/docs/presentation/**/*.pdf
+/docs/presentation/**/*.pptx

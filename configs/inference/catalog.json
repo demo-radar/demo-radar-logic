@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "configurations": {
+    "qwen-v4-v1": {
+      "path": "configs/inference/qwen-v4-v1.json",
+      "sha256": "c8db919ef32fd06bcc938df96c0e3ae8894d718912cb84f76855a9492e5f4731",
+      "provider": "hetzner",
+      "rubric_version": "4"
+    }
+  }
+}

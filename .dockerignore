@@ -1,0 +1,26 @@
+# Keep local research data and secrets out of the image build context.
+.git
+.github
+.venv
+.env
+.env.*
+data
+reports
+artifacts
+notebooks
+*.csv
+*.jsonl
+*.parquet
+*.pkl
+*.joblib
+*.pt
+*.onnx
+*.safetensors
+*.sqlite
+*.db
+*.pem
+*.key
+
+# The application has its own credential file below service/.
+**/.env
+**/.env.*

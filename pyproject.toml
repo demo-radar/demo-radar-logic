@@ -1,0 +1,61 @@
+[project]
+name = "demo-radar-logic"
+version = "0.1.0"
+description = "DemoLogic model evaluation and inference lab for Demo Radar"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = []
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1,<3",
+    "pytest>=8.4,<10",
+    "ruff>=0.13,<1",
+]
+notebooks = [
+    "ipykernel>=6,<8",
+    "ipywidgets>=8.1,<9",
+    "jupyterlab>=4,<5",
+    "matplotlib>=3.10,<4",
+    "nbclient>=0.10,<1",
+    "python-dotenv>=1.1,<2",
+    "scikit-learn>=1.7,<2",
+]
+semantic = [
+    {include-group = "notebooks"},
+    "torch>=2.6,<3",
+    "transformers>=4.57,<5",
+    "sentencepiece>=0.2,<0.3",
+    "huggingface-hub>=0.34,<1",
+]
+service = [
+    "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "uvicorn>=0.34,<1",
+]
+
+# Use CPU wheels on Linux/Windows; macOS uses the standard PyPI wheel.
+[tool.uv.sources]
+torch = [{index = "pytorch-cpu", marker = "sys_platform != 'darwin'"}]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/demo_logic"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"

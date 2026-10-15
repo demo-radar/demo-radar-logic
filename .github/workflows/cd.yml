@@ -1,0 +1,46 @@
+name: Publish service image
+
+# Run manually once the service has a reviewed Dockerfile. This publishes an
+# image to GitHub Container Registry; deployment is a separate decision.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check service image definition
+        shell: bash
+        run: |
+          if [[ ! -f Dockerfile ]]; then
+            echo "::error::Add and review a Dockerfile before publishing the service image."
+            exit 1
+          fi
+      - name: Name image
+        shell: bash
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Sign in to GitHub Container Registry
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Build and publish image
+        shell: bash
+        run: |
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --tag "$IMAGE:$GITHUB_SHA" \
+            .
+          set -o pipefail
+          docker push "$IMAGE:$GITHUB_SHA" | tee push.log
+          digest=$(awk '/digest: sha256:/ {print $3}' push.log | tail -1)
+          if [[ -z "$digest" ]]; then
+            echo "::error::Image was pushed, but its registry digest could not be read."
+            exit 1
+          fi
+          printf 'Published `%s@%s`\n' "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,36 @@
+{
+  "version": "v1",
+  "note": "Fictional style example only. Never copy these facts or IDs into a real answer.",
+  "input": {
+    "id": "example-only",
+    "title": "Für sichere Radwege"
+  },
+  "output": {
+    "de": {
+      "overview": [
+        {
+          "text": "Ein angemeldeter Titel fordert „sichere Radwege“.",
+          "event_ids": [
+            "example-only"
+          ]
+        }
+      ],
+      "limitations": [
+        "Ausgewählte Themen aus dem angemeldeten Programm; kein vollständiger Überblick über alle Berliner Demonstrationen."
+      ]
+    },
+    "en": {
+      "overview": [
+        {
+          "text": "One registered title calls for safe cycle paths.",
+          "event_ids": [
+            "example-only"
+          ]
+        }
+      ],
+      "limitations": [
+        "Selected highlights from the registered programme; this does not cover every demonstration in Berlin."
+      ]
+    }
+  }
+}

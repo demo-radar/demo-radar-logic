@@ -1,0 +1,72 @@
+{
+  "provider": "hetzner",
+  "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+  "endpoint": "https://inference.hetzner.com/api/v1/chat/completions",
+  "settings": {
+    "model": "Qwen/Qwen3.6-35B-A3B-FP8",
+    "temperature": 0,
+    "max_completion_tokens": 2048,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "daily_summary_draft",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "overview": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 400
+                  },
+                  "event_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "text",
+                  "event_ids"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              }
+            }
+          },
+          "required": [
+            "overview",
+            "limitations"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    }
+  },
+  "returned_model_ids": [
+    "Qwen/Qwen3.6-35B-A3B-FP8",
+    "Qwen/Qwen3.6-35B-A3B"
+  ]
+}

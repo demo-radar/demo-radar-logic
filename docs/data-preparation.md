@@ -59,6 +59,8 @@ The prepared taxonomy-v2 change replaces `conflict` with `international-politics
    ```
 
    `set -o pipefail` makes the command fail if reading the source fails, even if the converter process exits normally. The converter checks the source row count and SHA-256 fingerprint **before writing** its prepared files. It also rejects unexpected schema fields, event IDs, lifecycle values, and topic tags rather than silently accepting a changed export. If the exporter changes, update the converter and its tests before generating a new benchmark snapshot.
+   The converter prints only a completion message. Records and manifest metadata stay in the prepared files, outside console and CI logs.
+
 4. **Review the resulting summary without publishing rows.** Inspect `data/manifest.json` for source and prepared counts, excluded untagged/deleted/undated records, tag frequencies, and missing-field counts. Confirm that `data/dataset.jsonl` is present and its SHA-256 matches `content_sha256` in the prepared manifest. Record the DemoLogic conversion revision alongside the source revision and hashes. The first notebook, `01_data_snapshot_and_quality.ipynb`, will perform the broader quality review; the next notebook examines repeated events and validates the saved evaluation split.
 5. **Remove unnecessary raw copies and check Git.** Once conversion and verification succeed, remove any temporary source JSONL copies from the source host and local machine according to the project's retention policy. Before pushing, run `uv run --locked python scripts/check_public_repo.py` and inspect `git status`. Real exports, reviewed labels, row-level predictions, and fitted private artifacts must not be committed or baked into a Docker image.
 

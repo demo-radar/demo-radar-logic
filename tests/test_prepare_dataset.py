@@ -3,6 +3,9 @@
 import hashlib
 import io
 import json
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -129,3 +132,63 @@ def test_invalid_source_fields_fail_before_prepared_data_is_returned(
 def test_source_manifest_must_be_an_object() -> None:
     with pytest.raises(TypeError, match="JSON object"):
         prepare(io.BytesIO(), [], expected_source="production")
+
+
+@pytest.mark.parametrize("valid_hash", [True, False])
+def test_cli_keeps_export_details_out_of_console(tmp_path: Path, valid_hash: bool) -> None:
+    """Save private details only to files and report success only after verification."""
+    row = source_row(event_id="synthetic-private-event", tags=["mobility"])
+    row["title"] = "Synthetic private demonstration"
+    missing_postcode = source_row(event_id="synthetic-missing-postcode", tags=["mobility"])
+    missing_postcode["postcode"] = None
+    data = canonical_bytes(row) + canonical_bytes(missing_postcode)
+    manifest = source_manifest(data, 2)
+    manifest["label_review_status"] = "synthetic-private-review-note"
+    if not valid_hash:
+        manifest["content_sha256"] = "0" * 64
+    manifest_path = tmp_path / "source-manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    output = tmp_path / "prepared"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).resolve().parents[1] / "scripts" / "prepare_dataset.py"),
+            "--source-manifest",
+            str(manifest_path),
+            "--output-dir",
+            str(output),
+        ],
+        input=data,
+        capture_output=True,
+        check=False,
+    )
+
+    for private_value in (
+        row["external_id"],
+        row["title"],
+        row["postcode"],
+        manifest["label_review_status"],
+        manifest["git_revision"],
+    ):
+        assert private_value.encode() not in result.stdout + result.stderr
+    if not valid_hash:
+        assert result.returncode != 0
+        assert result.stdout == b""
+        assert b"SHA-256" in result.stderr
+        assert not output.exists()
+        return
+
+    assert result.returncode == 0, result.stderr.decode()
+    assert result.stdout.strip()
+    assert result.stderr == b""
+    saved_manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    prepared = (output / "dataset.jsonl").read_bytes()
+    saved_rows = [json.loads(line) for line in prepared.splitlines()]
+    assert saved_rows[0]["title"] == row["title"]
+    assert saved_rows[0]["postcode"] == row["postcode"]
+    assert saved_rows[1]["postcode"] is None
+    assert saved_manifest["label_review_status"] == manifest["label_review_status"]
+    assert saved_manifest["row_count"] == 2
+    assert saved_manifest["quality_counts"] == {"missing_postcode": 1}
+    assert saved_manifest["content_sha256"] == hashlib.sha256(prepared).hexdigest()

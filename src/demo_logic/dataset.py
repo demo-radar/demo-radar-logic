@@ -211,8 +211,8 @@ def main() -> None:
 
     Read source JSONL from standard input and the source manifest from the
     supplied path. Write the prepared dataset and manifest into ``--output-dir``
-    only after ``prepare`` verifies the full source stream. Print aggregate
-    metadata for the operator; never print demonstration rows.
+    only after ``prepare`` verifies the full source stream. Print a completion
+    message; keep records and manifest metadata out of console logs.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-manifest", required=True, type=Path)
@@ -227,7 +227,7 @@ def main() -> None:
     (args.output_dir / "manifest.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+    print("Prepared dataset and manifest saved.")
 
 
 if __name__ == "__main__":

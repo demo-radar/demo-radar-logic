@@ -26,6 +26,10 @@ Keep a copy of the current and previous release records before the 90-day
 artifact retention expires. CI does not delete registry versions. Keep the
 previous version available for rollback.
 
+Docker image IDs can refer to the configuration or the manifest/provenance
+index, depending on its storage backend. Verification checks the matching
+registry identity and preserves provenance.
+
 Publishing refuses dirty sources, feature branches, changed images or changed
 smoke evidence. Existing commit tags with different contents cannot be
 replaced. A registry or permission error fails the release; it does not

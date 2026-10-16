@@ -74,6 +74,16 @@ def verify(image):
     )
 
 
+def registry_matches(target, manifest, expected):
+    if manifest.get("config", {}).get("digest") == expected:
+        return True
+    # Containerd reports the manifest or provenance index as the local image ID.
+    digest = command(
+        "docker", "buildx", "imagetools", "inspect", target, "--format", "{{.Manifest.Digest}}"
+    )
+    return digest == expected
+
+
 def publish():
     data = json.loads(MANIFEST.read_text())
     commit = command("git", "rev-parse", "HEAD")
@@ -96,7 +106,7 @@ def publish():
         ["docker", "manifest", "inspect", target], capture_output=True, text=True, check=False
     )
     if existing.returncode == 0:
-        if json.loads(existing.stdout).get("config", {}).get("digest") != data["image_id"]:
+        if not registry_matches(target, json.loads(existing.stdout), data["image_id"]):
             raise ValueError("Refusing to overwrite an existing commit tag")
         subprocess.run(["docker", "pull", target], check=True)
     elif not re.search(
@@ -107,7 +117,7 @@ def publish():
         subprocess.run(["docker", "tag", data["image"], target], check=True)
         subprocess.run(["docker", "push", target], check=True)
     remote = json.loads(command("docker", "manifest", "inspect", target))
-    if remote.get("config", {}).get("digest") != data["image_id"]:
+    if not registry_matches(target, remote, data["image_id"]):
         raise ValueError("Registry image differs from the tested image")
     digests = command(
         "docker",

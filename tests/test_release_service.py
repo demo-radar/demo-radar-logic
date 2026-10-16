@@ -31,6 +31,8 @@ def commands(tmp_path, monkeypatch):
         "conflict": False,
         "down": False,
         "existing": False,
+        "index": False,
+        "remote_id": IMAGE_ID,
     }
 
     def command(*args):
@@ -43,7 +45,11 @@ def commands(tmp_path, monkeypatch):
             if "RepoDigests" in args[4]:
                 return "ghcr.io/demo-radar/demo-radar-logic@sha256:" + "b" * 64
             return f"{state['id']}|linux|{state['arch']}|{COMMIT}"
+        if args[:3] == ("docker", "buildx", "imagetools"):
+            return "different" if state["conflict"] else state["remote_id"]
         if args[:3] == ("docker", "manifest", "inspect"):
+            if state["index"]:
+                return json.dumps({"manifests": []})
             return json.dumps({"config": {"digest": state["id"]}})
         raise AssertionError(args)
 
@@ -54,6 +60,8 @@ def commands(tmp_path, monkeypatch):
         if args[:3] == ["docker", "manifest", "inspect"]:
             if state["down"]:
                 return subprocess.CompletedProcess(args, 1, stdout="", stderr="connection refused")
+            if state["index"] and (state["existing"] or state["conflict"]):
+                return subprocess.CompletedProcess(args, 0, stdout=json.dumps({"manifests": []}))
             if state.get("existing"):
                 return subprocess.CompletedProcess(
                     args, 0, stdout=json.dumps({"config": {"digest": IMAGE_ID}})
@@ -150,3 +158,30 @@ def test_matching_commit_tag_is_reused_without_a_push(commands):
     release.publish()
     assert not commands["pushed"]
     assert json.loads(release.MANIFEST.read_text())["registry_ref"]
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_provenance_index_matches_tested_containerd_identity(commands, existing):
+    commands["index"] = True
+    commands["existing"] = existing
+    release.verify("demologic:candidate")
+    release.publish()
+    assert commands["pushed"] is not existing
+    assert json.loads(release.MANIFEST.read_text())["registry_ref"]
+
+
+def test_different_provenance_index_cannot_replace_commit_tag(commands):
+    commands["index"] = True
+    commands["conflict"] = True
+    release.verify("demologic:candidate")
+    with pytest.raises(ValueError, match="overwrite"):
+        release.publish()
+    assert not commands["pushed"]
+
+
+def test_changed_registry_index_is_rejected_after_push(commands):
+    commands["index"] = True
+    commands["remote_id"] = "sha256:" + "d" * 64
+    release.verify("demologic:candidate")
+    with pytest.raises(ValueError, match="differs"):
+        release.publish()

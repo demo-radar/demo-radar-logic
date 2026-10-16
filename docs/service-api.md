@@ -198,4 +198,5 @@ schemas and safe errors remain shared at the service root.
 Public CI checks lint/format, synthetic tests and the publication boundary, then
 builds the image and runs the isolated Docker smoke script. These checks require
 no private dataset or provider key. Image publication uses a separate manual
-workflow; publishing an image is not deployment acceptance.
+workflow; publishing an image is not deployment acceptance. See the
+[ARM64 release guide](release-images.md) for digest records and pull commands.

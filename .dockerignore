@@ -4,6 +4,8 @@
 .venv
 .env
 .env.*
+.env*
+**/.env*
 data
 reports
 artifacts
@@ -24,3 +26,6 @@ notebooks
 # The application has its own credential file below service/.
 **/.env
 **/.env.*
+
+# Generated release evidence stays outside source and image layers.
+release-evidence/

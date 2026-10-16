@@ -1,46 +1,63 @@
-name: Publish service image
+name: Publish tested ARM64 service image
 
-# Run manually once the service has a reviewed Dockerfile. This publishes an
-# image to GitHub Container Registry; deployment is a separate decision.
 on:
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
+
+concurrency:
+  group: service-release
+  cancel-in-progress: false
 
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
   image:
-    runs-on: ubuntu-latest
+    needs: checks
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Check service image definition
+        with:
+          persist-credentials: false
+      - name: Require main
+        shell: bash
+        run: test "$GITHUB_REF" = refs/heads/main
+      - name: Pull pinned base images
+        run: bash scripts/pull_base_images.sh
+      - name: Build ARM64 release image
         shell: bash
         run: |
-          if [[ ! -f Dockerfile ]]; then
-            echo "::error::Add and review a Dockerfile before publishing the service image."
-            exit 1
-          fi
-      - name: Name image
-        shell: bash
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-      - name: Sign in to GitHub Container Registry
+          docker build --platform linux/arm64 \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "demologic:release-$GITHUB_SHA" .
+      - name: Verify the release image without provider calls
+        run: python3 scripts/release_service.py verify "demologic:release-$GITHUB_SHA"
+      - name: Publish the verified image
         shell: bash
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-      - name: Build and publish image
-        shell: bash
         run: |
-          docker build \
-            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
-            --tag "$IMAGE:$GITHUB_SHA" \
-            .
-          set -o pipefail
-          docker push "$IMAGE:$GITHUB_SHA" | tee push.log
-          digest=$(awk '/digest: sha256:/ {print $3}' push.log | tail -1)
-          if [[ -z "$digest" ]]; then
-            echo "::error::Image was pushed, but its registry digest could not be read."
-            exit 1
-          fi
-          printf 'Published `%s@%s`\n' "$IMAGE" "$digest" >> "$GITHUB_STEP_SUMMARY"
+          set +x
+          set -eu
+          umask 077
+          DOCKER_CONFIG=$(mktemp -d)
+          export DOCKER_CONFIG
+          trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          python3 scripts/release_service.py publish
+          cat release-evidence/release.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Save release identity and smoke results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: service-release-${{ github.sha }}
+          path: release-evidence/
+          if-no-files-found: ignore
+          retention-days: 90

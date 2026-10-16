@@ -16,7 +16,7 @@ jobs:
 
   image:
     needs: checks
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 20
     permissions:
       contents: read

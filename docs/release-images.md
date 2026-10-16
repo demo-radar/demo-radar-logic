@@ -2,7 +2,7 @@
 
 Run **Publish tested ARM64 service image** manually from `main`. It runs the
 shared CI workflow first, then builds a `linux/arm64` image on GitHub's native
-ARM runner. The final image passes the offline API, authentication, tag and
+ARM runner (`ubuntu-26.04-arm`). The final image passes the offline API, authentication, tag and
 summary replay, maintenance and restart checks before it is pushed.
 
 The job uses GitHub's `GITHUB_TOKEN` with package write access. No provider

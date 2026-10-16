@@ -49,3 +49,6 @@ htmlcov/
 # Generated slide exports: keep Markdown and SVG sources in Git
 /docs/presentation/**/*.pdf
 /docs/presentation/**/*.pptx
+
+# Generated release evidence stays outside source and image layers.
+release-evidence/

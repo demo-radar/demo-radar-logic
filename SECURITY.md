@@ -13,3 +13,17 @@ or bug-bounty program stated here.
 
 Ordinary bugs and documentation suggestions can use repository issues when
 available. The [contribution guide](CONTRIBUTING.md) explains local checks.
+
+## Dependency checks
+
+Run `uv audit --locked` before releasing. It checks the locked dependencies,
+including optional notebook/model groups. CI fails on reported vulnerabilities;
+there are no advisory suppressions. Use
+`uv audit --locked --python-platform aarch64-unknown-linux-gnu` to check the
+service runner's platform explicitly.
+
+Keep Transformers and Hugging Face Hub version limits compatible when updating
+the research group. Run the synthetic semantic compatibility check described
+in [notebook setup](docs/notebook-setup.md) as well as the service tests. Optional
+research libraries are not installed in the production API image, but still
+need security updates for people using the notebooks.

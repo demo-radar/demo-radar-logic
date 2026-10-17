@@ -1,0 +1,5 @@
+# Use after compose.yml when deploying a published image, in either environment.
+services:
+  demologic:
+    image: ${DEMOLOGIC_IMAGE:?Set the approved DemoLogic digest}
+    build: !reset null

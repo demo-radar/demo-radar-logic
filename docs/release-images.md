@@ -107,3 +107,58 @@ before resuming admission. The Demo Radar operator README provides the `logic`
 shell helper with the production network override. Never use `down -v` or
 start a second journal when deploying. Retain the previous digest and its
 compatible configuration for a manual rollback.
+
+## Image-only staging promotion
+
+Demo Radar's Jenkins pipeline owns the manual deployment of both applications
+on the shared staging host. GitHub Actions publishes this image but has no SSH
+access to staging or production. No GitHub push deploys either environment.
+
+After this change is merged and its release succeeds, give the operator the
+`registry_ref` and `source_commit` from `release.json`. They select those values
+in Jenkins main's `DEMOLOGIC_STAGING_IMAGE` and `DEMOLOGIC_STAGING_COMMIT`, with
+`DEPLOY_TO_STAGING=true`. Jenkins reruns Radar checks, publishes its images and
+promotes all three explicit digests. Use a separate Jenkins read-only package
+credential (`demo-radar-ghcr-read`), never the package publishing token.
+
+`compose.images.yml` removes the local build definition. The shared network
+override preserves the existing `demologic-staging` journal volume and keeps
+the API private. The staging-only override limits both inference attempt caps
+to one. Radar keeps five demos per manual batch and automatic AI scheduling off.
+
+The deployment helper can also be run by an operator in either environment:
+
+```bash
+export LOGIC_PROJECT=demologic-staging   # production uses demologic-prod
+export DEPLOYMENT_ENV=staging           # or production
+export RADAR_DIR=/path/to/existing/demo-radar
+export DEMO_RADAR_NETWORK=demo-radar-staging_default
+bash scripts/deploy/image.sh --check "$LOGIC_REF" "$LOGIC_COMMIT"
+# After approval:
+bash scripts/deploy/image.sh --apply "$LOGIC_REF" "$LOGIC_COMMIT"
+```
+
+Select the real existing project, checkout and network for that environment.
+The helper requires a running service and checks Linux ARM64 and source revision
+before maintenance or replacement. It verifies the existing named journal
+volume and database path, then blocks new admission, refuses active or unknown
+attempts, stops the drained container, and copies its full state
+directory before replacement. A missing or empty backup prevents replacement;
+the backup checksum is saved with its release record. It uses `--no-build --no-deps --pull never`.
+Health checks confirm that the saved maintenance state survived. No provider
+requests are made. Backups and previous image records are private under
+`data/releases`; they must not be committed or uploaded as public CI artifacts.
+
+Admission remains paused for operator acceptance. Resume through authenticated
+`DELETE /v1/maintenance` and verify `/health/ready` only after checking the
+combined application. If backup fails after stopping the old container, it
+stays stopped; fix the backup before safely restarting that same container.
+A failed health check leaves the record for manual recovery. Retain previous
+digests and compatible configuration; do not delete volumes to roll back.
+
+Deployment helpers are grouped under `scripts/deploy/`: `image.sh` handles
+container operations and `state.py` checks the existing journal and admission
+state. Runtime network fragments live in Demo Radar's `deploy/` directory;
+Markdown under `docs/` contains instructions only. The Radar coordinator uses
+`--pause` before its database backup, then `--apply` for the journal backup
+and update. Neither command resumes admission automatically.

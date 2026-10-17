@@ -66,7 +66,23 @@ If progress bars still render only as text, refresh JupyterLab. When the Jupyter
 
 Notebook 06 uses `dtype=torch.float32` when loading the model. Older copies used the deprecated `torch_dtype` argument; reload the saved notebook to pick up the change.
 
-The pinned Transformers DeBERTa implementation still uses `torch.jit.script` internally. PyTorch reports a `FutureWarning` when that code loads. This warning does not stop the current run. It is an upstream compatibility issue, not an instruction to replace our inference loop with `torch.compile`. Keep the pinned model-library versions for this comparison; assess a library upgrade separately and verify predictions before adopting it. We leave the warning visible.
+The supported research environment now requires Transformers 5.10.1 or newer
+and Hugging Face Hub 1.5 or newer. The lockfile chooses the exact compatible
+versions. These are optional research dependencies; the production service
+image installs only its `service` group.
+
+After updating a notebook environment, restart its kernel. Run
+`uv run --locked --group semantic python scripts/check_semantic_environment.py`
+to check DeBERTa inference and safe local weight reload using synthetic data.
+This downloads packages, not model weights, and sends no LLM requests. CI runs
+the same offline check. The upstream DeBERTa implementation can still emit a
+`torch.jit.script` deprecation warning; it does not fail that check.
+
+Saved research scores keep the library versions recorded when they were run.
+A synthetic compatibility check does not prove identical predictions from a
+real checkpoint. Use the original research revision from the
+[replay guide](reproducibility.md) to reproduce old experiments. Do not replace
+historical scores or mix new library timings into the old comparison.
 
 ### CPU and GPU on a MacBook
 

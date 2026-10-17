@@ -17,19 +17,26 @@ args = sys.argv[1:]
 with open(os.environ['CALLS'], 'a') as out: out.write(json.dumps(args) + '\\n')
 if args[:2] == ['image', 'inspect']:
     print('linux/' + os.environ.get('ARCH', 'arm64') + '|' + os.environ.get('IMAGE_COMMIT', os.environ['COMMIT']))
-elif args[0] == 'inspect': print('previous-ref|old-id')
+elif args[0] == 'inspect':
+    if '.Mounts' in args[2]: print('true|volume|' + os.environ.get('JOURNAL_VOLUME', os.environ['LOGIC_PROJECT'] + '_inference-state'))
+    else: print('previous-ref|old-id')
 elif args[0] == 'compose' and 'ps' in args:
     if not os.environ.get('MISSING_SERVICE'): print('existing-logic')
-elif args[:2] == ['exec', '-i'] and os.environ.get('UNRESOLVED'): sys.exit(1)
-elif args[0] == 'cp' and os.environ.get('BACKUP_FAILURE'): sys.exit(1)
+elif args[:2] == ['exec', '-i'] and args[-1] == 'pause' and os.environ.get('UNRESOLVED'): sys.exit(1)
+elif args[0] == 'cp':
+    if os.environ.get('BACKUP_FAILURE'): sys.exit(1)
+    from pathlib import Path
+    folder=Path(args[-1]);folder.mkdir(parents=True)
+    (folder / 'inference.sqlite').write_bytes(b'' if os.environ.get('EMPTY_BACKUP') else b'synthetic journal')
 elif args[0] == 'compose' and 'exec' in args and os.environ.get('HEALTH_FAILURE'): sys.exit(1)
 """
 
 
 @pytest.fixture
 def deployment(tmp_path):
-    (tmp_path / "scripts").mkdir()
-    shutil.copy(ROOT / "scripts/deploy_image.sh", tmp_path / "scripts")
+    (tmp_path / "scripts/deploy").mkdir(parents=True)
+    for name in ("image.sh", "state.py"):
+        shutil.copy(ROOT / "scripts/deploy" / name, tmp_path / "scripts/deploy" / name)
     docker = tmp_path / "docker"
     docker.write_text(f"#!{sys.executable}\n" + DOCKER)
     docker.chmod(0o700)
@@ -37,7 +44,7 @@ def deployment(tmp_path):
 
     def run(mode="--check", image=IMAGE, **env):
         return subprocess.run(
-            ["bash", str(tmp_path / "scripts/deploy_image.sh"), mode, image, COMMIT],
+            ["bash", str(tmp_path / "scripts/deploy/image.sh"), mode, image, COMMIT],
             env={
                 **os.environ,
                 "PATH": str(tmp_path) + os.pathsep + os.environ["PATH"],
@@ -65,7 +72,7 @@ def test_check_only_pulls_and_validates(deployment):
     result = run()
     assert result.returncode == 0, result.stderr
     assert any("pull" in x for x in commands())
-    assert not any("stop" in x or "up" in x or "exec" in x for x in commands())
+    assert not any("stop" in x or "up" in x or "pause" in x for x in commands())
 
 
 @pytest.mark.parametrize(
@@ -120,3 +127,23 @@ def test_failed_readiness_and_concurrent_deploy_are_reported(deployment):
     assert run("--apply").returncode != 0
     lock.rmdir()
     assert run("--apply", HEALTH_FAILURE="1").returncode != 0
+
+
+def test_wrong_journal_volume_cannot_pause_or_stop(deployment):
+    run, commands, _ = deployment
+    assert run("--apply", JOURNAL_VOLUME="new_empty_volume").returncode != 0
+    assert not any("stop" in x or "up" in x or "pause" in x for x in commands())
+
+
+def test_pause_drains_without_stopping_or_replacing(deployment):
+    run, commands, _ = deployment
+    result = run("--pause")
+    assert result.returncode == 0, result.stderr
+    assert any(x[-1] == "pause" for x in commands())
+    assert not any("stop" in x or "up" in x for x in commands())
+
+
+def test_empty_journal_backup_cannot_replace_container(deployment):
+    run, commands, _ = deployment
+    assert run("--apply", EMPTY_BACKUP="1").returncode != 0
+    assert not any("up" in x for x in commands())

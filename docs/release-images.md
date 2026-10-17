@@ -110,21 +110,20 @@ compatible configuration for a manual rollback.
 
 ## Image-only staging promotion
 
-Demo Radar's Jenkins pipeline owns the manual deployment of both applications
-on the shared staging host. GitHub Actions publishes this image but has no SSH
-access to staging or production. No GitHub push deploys either environment.
+DemoLogic deploys independently through `scripts/deploy/image.sh`. Demo Radar's
+Jenkins staging flag deploys Radar only; it never selects or replaces Logic.
+GitHub Actions publishes the service image but has no access to either runtime host.
 
-After this change is merged and its release succeeds, give the operator the
-`registry_ref` and `source_commit` from `release.json`. They select those values
-in Jenkins main's `DEMOLOGIC_STAGING_IMAGE` and `DEMOLOGIC_STAGING_COMMIT`, with
-`DEPLOY_TO_STAGING=true`. Jenkins reruns Radar checks, publishes its images and
-promotes all three explicit digests. Use a separate Jenkins read-only package
-credential (`demo-radar-ghcr-read`), never the package publishing token.
+Use the successful release's `registry_ref` and `source_commit`, the existing
+operator's read-only package login and the target's private runtime settings.
+The helper checks a clean matching checkout, Linux ARM64, free disk space and
+the persistent journal before replacement. `DEPLOY_MIN_FREE_MB` defaults to 2048;
+raise it to cover the actual journal backup and reserve. Images are pulled and
+checked before admission is paused or the container is stopped.
 
-`compose.images.yml` removes the local build definition. The shared network
-override preserves the existing `demologic-staging` journal volume and keeps
-the API private. The staging-only override limits both inference attempt caps
-to one. Radar keeps five demos per manual batch and automatic AI scheduling off.
+The shared network override keeps the API private. Staging remains manual at
+five demos per tagging batch and one attempt; production retains its approved
+schedules and budgets. Deployment does not edit these settings.
 
 The deployment helper can also be run by an operator in either environment:
 
@@ -145,6 +144,12 @@ volume and database path, then blocks new admission, refuses active or unknown
 attempts, stops the drained container, and copies its full state
 directory before replacement. A missing or empty backup prevents replacement;
 the backup checksum is saved with its release record. It uses `--no-build --no-deps --pull never`.
+
+The helper also holds `RADAR_DIR/data/releases/deployment.lock`, alongside its
+own lock, so it cannot overlap a Radar deployment. Failure records retain the
+phase and exit code. A failure never silently resumes admission or replaces the
+previous accepted image reference. Backups include checksums for SQLite side files
+as well as the main journal.
 Health checks confirm that the saved maintenance state survived. No provider
 requests are made. Backups and previous image records are private under
 `data/releases`; they must not be committed or uploaded as public CI artifacts.
@@ -159,6 +164,6 @@ digests and compatible configuration; do not delete volumes to roll back.
 Deployment helpers are grouped under `scripts/deploy/`: `image.sh` handles
 container operations and `state.py` checks the existing journal and admission
 state. Runtime network fragments live in Demo Radar's `deploy/` directory;
-Markdown under `docs/` contains instructions only. The Radar coordinator uses
-`--pause` before its database backup, then `--apply` for the journal backup
-and update. Neither command resumes admission automatically.
+Markdown under `docs/` contains instructions only. Radar and Logic remain separate operations: Radar owns its database backup;
+Logic owns its journal backup. Radar never invokes this helper during its own
+release. Neither application resumes admission automatically.

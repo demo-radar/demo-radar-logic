@@ -15,11 +15,13 @@ IMAGE = "ghcr.io/demo-radar/demo-radar-logic@sha256:" + "a" * 64
 DOCKER = """import json, os, sys
 args = sys.argv[1:]
 with open(os.environ['CALLS'], 'a') as out: out.write(json.dumps(args) + '\\n')
-if args[:2] == ['image', 'inspect']:
+if args[0] == 'info': print('linux/' + os.environ.get('HOST_ARCH', 'arm64'))
+elif args[:2] == ['image', 'inspect']:
     print('linux/' + os.environ.get('ARCH', 'arm64') + '|' + os.environ.get('IMAGE_COMMIT', os.environ['COMMIT']))
 elif args[0] == 'inspect':
     if '.Mounts' in args[2]: print('true|volume|' + os.environ.get('JOURNAL_VOLUME', os.environ['LOGIC_PROJECT'] + '_inference-state'))
     else: print('previous-ref|old-id')
+elif args[0] == 'compose' and 'pull' in args and os.environ.get('PULL_FAILURE'): sys.exit(1)
 elif args[0] == 'compose' and 'ps' in args:
     if not os.environ.get('MISSING_SERVICE'): print('existing-logic')
 elif args[:2] == ['exec', '-i'] and args[-1] == 'pause' and os.environ.get('UNRESOLVED'): sys.exit(1)
@@ -28,6 +30,7 @@ elif args[0] == 'cp':
     from pathlib import Path
     folder=Path(args[-1]);folder.mkdir(parents=True)
     (folder / 'inference.sqlite').write_bytes(b'' if os.environ.get('EMPTY_BACKUP') else b'synthetic journal')
+    (folder / 'inference.sqlite-wal').write_bytes(b'synthetic pending pages')
 elif args[0] == 'compose' and 'exec' in args and os.environ.get('HEALTH_FAILURE'): sys.exit(1)
 """
 
@@ -35,11 +38,19 @@ elif args[0] == 'compose' and 'exec' in args and os.environ.get('HEALTH_FAILURE'
 @pytest.fixture
 def deployment(tmp_path):
     (tmp_path / "scripts/deploy").mkdir(parents=True)
+    (tmp_path / "radar").mkdir()
     for name in ("image.sh", "state.py"):
         shutil.copy(ROOT / "scripts/deploy" / name, tmp_path / "scripts/deploy" / name)
     docker = tmp_path / "docker"
     docker.write_text(f"#!{sys.executable}\n" + DOCKER)
     docker.chmod(0o700)
+    for name, source in {
+        "git": f"#!{sys.executable}\nimport os,sys\nprint(os.environ.get('SOURCE_COMMIT', os.environ['COMMIT']) if sys.argv[1] == 'rev-parse' else os.environ.get('DIRTY', ''))\n",
+        "df": "#!/bin/sh\necho header\necho synthetic 20000000 0 ${FREE_KB:-10000000} 0% /\n",
+    }.items():
+        executable = tmp_path / name
+        executable.write_text(source)
+        executable.chmod(0o700)
     calls = tmp_path / "calls.jsonl"
 
     def run(mode="--check", image=IMAGE, **env):
@@ -118,6 +129,8 @@ def test_apply_preserves_journal_and_leaves_admission_paused(deployment):
     assert list((root / "data/releases").glob("*/previous-image.txt"))
     assert not (root / "data/releases/deployment.lock").exists()
     assert IMAGE in (root / "data/releases/current-image.env").read_text()
+    checksum = next((root / "data/releases").glob("*/journal.sha256")).read_text()
+    assert "./inference.sqlite-wal" in checksum
 
 
 def test_failed_readiness_and_concurrent_deploy_are_reported(deployment):
@@ -147,3 +160,39 @@ def test_empty_journal_backup_cannot_replace_container(deployment):
     run, commands, _ = deployment
     assert run("--apply", EMPTY_BACKUP="1").returncode != 0
     assert not any("up" in x for x in commands())
+
+
+@pytest.mark.parametrize(
+    "env",
+    [
+        {"HOST_ARCH": "amd64"},
+        {"FREE_KB": "1024"},
+        {"DIRTY": " M source"},
+        {"SOURCE_COMMIT": "2" * 40},
+        {"PULL_FAILURE": "1"},
+    ],
+)
+def test_failed_preflight_cannot_pause_or_replace(deployment, env):
+    run, commands, _ = deployment
+    assert run("--apply", **env).returncode != 0
+    assert not any("stop" in call or "up" in call or "pause" in call for call in commands())
+
+
+def test_radar_deployment_lock_blocks_logic(deployment):
+    run, commands, root = deployment
+    lock = root / "radar/data/releases/deployment.lock"
+    lock.mkdir(parents=True)
+    assert run("--apply").returncode != 0
+    assert commands() == []
+    assert lock.exists()
+
+
+def test_failure_keeps_the_previous_accepted_image_and_records_the_phase(deployment):
+    run, _, root = deployment
+    release = root / "data/releases/current-image.env"
+    release.parent.mkdir(parents=True)
+    release.write_text("previous accepted image")
+    assert run("--apply", HEALTH_FAILURE="1").returncode != 0
+    assert release.read_text() == "previous accepted image"
+    assert any("phase=verify" in p.read_text() for p in release.parent.glob("*/result.txt"))
+    assert not (root / "radar/data/releases/deployment.lock").exists()

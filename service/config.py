@@ -39,6 +39,9 @@ class Settings:
     summary_max_attempts: int = 3
     summary_timeout_seconds: float = 60
     config_id: str = "qwen-v4-v1"
+    retained_tag_configs: tuple[str, ...] = ()
+    retained_summary_configs: tuple[str, ...] = ()
+    environment: str = "unspecified"
     root: Path = Path(__file__).resolve().parents[1]
 
     def __post_init__(self):
@@ -58,6 +61,8 @@ class Settings:
             raise ValueError("Summary attempts must be 3 or 5")
         if not 1 <= self.summary_timeout_seconds <= 60:
             raise ValueError("Summary timeout must be 1–60 seconds")
+        if self.environment not in {"unspecified", "local", "staging", "production", "test"}:
+            raise ValueError("Unsupported service environment")
         if self.mode == "live" and (not self.provider_key or not self.free_tier_confirmed):
             raise ValueError("Live mode requires a Hetzner key and confirmed free-tier account")
 
@@ -80,6 +85,13 @@ class Settings:
                 os.environ.get("DEMOLOGIC_SUMMARY_TIMEOUT_SECONDS", "60")
             ),
             config_id=os.environ.get("DEMOLOGIC_CONFIG_ID", "qwen-v4-v1"),
+            retained_tag_configs=tuple(
+                filter(None, os.environ.get("DEMOLOGIC_RETAINED_TAG_CONFIGS", "").split(","))
+            ),
+            retained_summary_configs=tuple(
+                filter(None, os.environ.get("DEMOLOGIC_RETAINED_SUMMARY_CONFIGS", "").split(","))
+            ),
+            environment=os.environ.get("DEMOLOGIC_ENVIRONMENT", "unspecified"),
         )
 
 

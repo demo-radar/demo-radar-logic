@@ -1,4 +1,4 @@
-"""Choose one provider at startup; routes never select or switch vendors.
+"""Build adapters for approved profiles at startup; never silently switch vendors.
 
 Concrete adapters live beside this factory in service/providers. Add an adapter here only after
 its configuration and operational controls are reviewed. There is no automatic
@@ -11,7 +11,7 @@ from service.providers.synthetic import SyntheticProvider
 
 
 def create_provider(settings, config, client) -> TagProvider:
-    """Select the adapter once at startup; never silently enable a paid provider.
+    """Build one profile adapter at startup; never silently enable a paid provider.
 
     Inputs are runtime settings, an approved model config and a managed client.
     Returns SyntheticProvider in demo mode or QwenProvider for live Hetzner.

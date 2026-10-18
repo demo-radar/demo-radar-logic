@@ -14,6 +14,8 @@ from http import HTTPStatus
 from service.contracts import ErrorDetail
 
 MESSAGES = {
+    "job_configuration_mismatch": "This job already uses a different execution profile. Keep its original settings.",
+    "unsupported_task_profile": "This task/profile combination is unavailable. Keep the saved job and check compatible service versions.",
     "recovery_inflight": "A local inference call is still running. Wait for it to finish before recovery.",
     "recovery_wait_required": "Wait until 15 minutes after the saved timeout before closing it.",
     "attempt_not_finalized_unknown": "Only a finalized unknown answer can be closed here. An unfinished request needs investigation.",

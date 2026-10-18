@@ -53,6 +53,8 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `GET /health/live` | Process liveness; no provider request |
 | `GET /health/ready` | Authenticated admission/readiness state |
 | `GET /v1/openapi.json` | Implemented request and response schemas |
+| `GET /v1/task-profiles` | Read-only supported task/profile catalog |
+| `GET /v1/attempts/{request_id}/execution` | Private saved configuration and measured phase facts |
 | `POST /v1/tag-suggestions` | One event’s topic suggestions |
 | `GET /v1/daily-summary-contract` | Summary configuration, model metadata and fingerprint |
 | `POST /v1/daily-summary-drafts` | One saved public snapshot’s private German draft |
@@ -61,6 +63,9 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `POST /v1/attempts/{request_id}/close` | Audited closure of an eligible finalized unknown attempt |
 | `POST /v1/maintenance` | Block admission and drain local work |
 | `DELETE /v1/maintenance` | Resume admission when recovery permits |
+
+The main [task execution guide](task-execution.md) explains the request flow,
+retained profiles, saved execution records and upgrade/rollback procedure.
 
 ## Tagging contract
 
@@ -75,6 +80,16 @@ The service token is not a staff session; Demo Radar separately checks staff per
   "event": {"id": "synthetic-demo-001", "title": "Für sichere Radwege"}
 }
 ```
+
+Both tagging and summary requests accept an optional `execution` object:
+
+* `task`: `tagging` or `daily-summary`, matching the endpoint.
+* `profile_sha256`: the exact hash returned by the approved profile catalog.
+* `origin`: `manual_api` or `scheduled`.
+
+The existing `model_id` selects the profile. Incompatible task/hash combinations
+are rejected before dispatch. Environment comes from `DEMOLOGIC_ENVIRONMENT`.
+Older callers can omit `execution` and keep their original request fingerprints.
 
 Stable request IDs support recovery. The caller supplies batch identity and
 source/configuration versions; it must not invent new versions to bypass limits.

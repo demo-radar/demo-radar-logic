@@ -38,3 +38,17 @@ class TagProvider(Protocol):
     async def predict(self, payload: dict) -> ProviderResult:
         """Submit one independent request; never retry or switch models internally."""
         ...
+
+
+def response_metadata(body):
+    """Keep valid identity/usage fields even if the generated tags are invalid.
+
+    Do not retain the completion text or other response fields. Invalid metadata
+    fields become null in a failed result; they are never misreported as usage.
+    """
+    body = body if isinstance(body, dict) else {}
+    return {
+        "model": body.get("model") if isinstance(body.get("model"), str) else None,
+        "id": body.get("id") if isinstance(body.get("id"), str) else None,
+        "usage": body.get("usage") if isinstance(body.get("usage"), dict) else None,
+    }

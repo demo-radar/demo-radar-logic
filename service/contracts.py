@@ -49,6 +49,15 @@ class Event(BaseModel):
         return title
 
 
+class ExecutionContext(BaseModel):
+    """Optional pinned context from an authenticated backend, never model settings."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+    task: Literal["tagging", "daily-summary"]
+    profile_sha256: Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
+    origin: Literal["manual_api", "scheduled"]
+
+
 class TagRequest(BaseModel):
     """Idempotent request from the future background worker.
 
@@ -77,6 +86,7 @@ class TagRequest(BaseModel):
     source_version: Identifier
     input_variant: Literal["F0"] = "F0"
     event: Event
+    execution: ExecutionContext | None = None
 
 
 class AttemptStatistics(BaseModel):

@@ -31,9 +31,9 @@ flowchart LR
         Staff --> Approved[Approved public content]
     end
     subgraph Logic[DemoLogic]
-        API[Authenticated API] --> Gate[Journal and admission control]
-        Gate --> Provider[Configured provider adapter]
-        Provider --> Persist[Validate and save the outcome]
+        API[Authenticated API] --> Tasks[Task execution]
+        Tasks --> Provider[Configured provider adapter]
+        Provider --> Persist[Private results]
     end
     Worker --> API
     Persist --> Saved
@@ -67,19 +67,14 @@ team to change the application or model adapter without merging those concerns.
 
 ## Operational constraints
 
-Tagging and summaries share one inference gate. An uncertain remote outcome
-blocks new inference until saved-answer lookup or an audited eligible closure
-resolves it. Restarting is not evidence that the provider stopped. Original
-attempts and unknown usage remain recorded; recovery is not tag approval.
-
 DemoLogic runs as one process on one host with a persistent local SQLite journal.
-Independent journals and multi-host replicas do not share admission safety.
-Demo Radar coordinates its jobs through PostgreSQL. Secrets stay in private
-runtime settings; synthetic mode uses invented fixtures without provider calls.
+Demo Radar coordinates jobs through PostgreSQL. Multi-host replicas and
+network-mounted SQLite are unsupported. Schedules and batch limits are deployment
+settings; secrets stay in private runtime settings.
 
-Schedules and batch limits are deployment settings. The current presentation
-configuration is manual, five demonstrations per tagging batch and one attempt
-per event. Those settings do not redefine the service’s hard upper limits.
+The main [task execution guide](task-execution.md) owns the execution diagram,
+shared admission/recovery rules, retained profiles and upgrade/rollback procedure.
+The [API reference](service-api.md) owns endpoint and request details.
 
 ## Evidence and related documentation
 

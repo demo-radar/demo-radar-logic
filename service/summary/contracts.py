@@ -16,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from service.contracts import AttemptStatistics, ErrorDetail, Identifier
+from service.contracts import AttemptStatistics, ErrorDetail, ExecutionContext, Identifier
 from service.inference.results import fingerprint
 
 Text = Annotated[str, StringConstraints(min_length=1, max_length=4000)]
@@ -99,6 +99,7 @@ class SummaryRequest(BaseModel):
     config_sha256: Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")] | None = None
     snapshot_sha256: Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
     snapshot: DailySnapshot
+    execution: ExecutionContext | None = None
 
     @model_validator(mode="after")
     def valid_hash(self):

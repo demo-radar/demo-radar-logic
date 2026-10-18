@@ -5,13 +5,19 @@ routes, staff permissions, production records or scheduled jobs.
 """
 
 import asyncio
+import logging
 import time
 
 import httpx
 
+from service.inference.identity import request_identity, source_identity
+from service.inference.profiles import describe_profile
 from service.inference.results import AttemptOutcome, build_result, fingerprint, utc_now
+from service.inference.validation import validate_tags
 from service.persistence.journal import AdmissionError
 from service.providers.base import ProviderFailure
+
+logger = logging.getLogger(__name__)
 
 
 class InferenceService:
@@ -27,6 +33,8 @@ class InferenceService:
     tasks; forced termination retains the journal's unresolved attempt marker.
     """
 
+    task = "tagging"
+
     def __init__(self, settings, config, journal, provider):
         self.settings, self.config = settings, config
         self.journal, self.provider = journal, provider
@@ -39,17 +47,15 @@ class InferenceService:
         admitted. A repeated request returns the original statistics. Request
         IDs cannot override the operator's attempt, batch or maintenance limits.
         """
+        replay = self.replay(request)
+        if replay is not None:
+            return replay
+        self.validate_profile(request)
         if request.model_id != self.config.version:
             raise AdmissionError("unsupported_configuration", 422)
         if self.settings.mode == "demo" and not request.event.id.startswith("synthetic-"):
             raise AdmissionError("synthetic_event_required", 422)
-        identity = fingerprint(
-            {
-                "request": request.model_dump(),
-                "config": self.config.sha256,
-                "mode": self.settings.mode,
-            }
-        )
+        identity = request_identity(request, self.config.sha256, self.settings.mode, self.task)
         event_key = fingerprint(
             {
                 "event": request.event.model_dump(),
@@ -65,6 +71,35 @@ class InferenceService:
             lambda: self._infer(request, self.journal.attempt_count(event_key)),
         )
 
+    def validate_profile(self, request):
+        """Validate explicit task/hash context without changing legacy request shapes."""
+        context = request.execution
+        if context is not None and (
+            context.task != self.task or context.profile_sha256 != self.config.sha256
+        ):
+            raise AdmissionError("unsupported_task_profile", 422)
+
+    def replay(self, request):
+        """Replay original evidence even after its profile is no longer executable."""
+        saved = self.journal.get_attempt(request.request_id)
+        if saved is None:
+            return None
+        body, _ = saved
+        execution = self.journal.execution(request.request_id)
+        task = (
+            execution["task"]
+            if execution
+            else ("daily-summary" if "snapshot_sha256" in body else "tagging")
+        )
+        if task != self.task or body.get("config_version", request.model_id) != request.model_id:
+            raise AdmissionError("idempotency_conflict")
+        sha = execution["profile_sha256"] if execution else body.get("config_sha256")
+        mode = execution["mode"] if execution else body.get("mode")
+        if sha is None:
+            raise AdmissionError("attempt_unresolved")
+        identity = request_identity(request, sha, mode, self.task)
+        return self.journal.replay(request.request_id, identity)
+
     async def _admit(self, request, identity, event_key, execute, **options):
         """Hold the activity lock from reservation through final persistence.
 
@@ -78,13 +113,62 @@ class InferenceService:
         lock.__enter__()
         try:
             saved = self.journal.begin(
-                request, identity, event_key, self.settings.min_interval_seconds, **options
+                request,
+                identity,
+                event_key,
+                self.settings.min_interval_seconds,
+                execution={
+                    **describe_profile(self.task, self.config),
+                    "mode": self.settings.mode,
+                    "environment": self.settings.environment,
+                    "origin": request.execution.origin if request.execution else "legacy",
+                    "request_id": request.request_id,
+                    "job_id": request.job_id,
+                    "source_sha256": source_identity(request, self.task),
+                    "attempt_limit": self.journal.max_attempts,
+                    "payload_sha256": fingerprint(
+                        self.config.payload(
+                            request.event.title if self.task == "tagging" else request.snapshot
+                        )
+                    ),
+                    "timeout_seconds": self.settings.timeout_seconds
+                    if self.task == "tagging"
+                    else self.settings.summary_timeout_seconds,
+                    "batch_event_limit": 40,
+                    "batch_attempt_limit": 120,
+                    "admitted_at": utc_now(),
+                },
+                allowance_key=fingerprint(
+                    {
+                        "task": self.task,
+                        "mode": self.settings.mode,
+                        "source": source_identity(request, self.task),
+                    }
+                ),
+                **options,
             )
             if saved:
                 result, status = saved
                 lock.__exit__(None, None, None)
                 return {**result, "replayed": True, "new_provider_calls": 0}, status
-            task = asyncio.create_task(execute())
+
+            async def recorded():
+                self.journal.mark_execution(request.request_id, started_at=utc_now())
+                logger.info(
+                    "event=inference_phase task=%s request_id=%s phase=execute",
+                    self.task,
+                    request.request_id,
+                )
+                result = await execute()
+                logger.info(
+                    "event=inference_phase task=%s request_id=%s phase=saved outcome=%s",
+                    self.task,
+                    request.request_id,
+                    result[0]["status"],
+                )
+                return result
+
+            task = asyncio.create_task(recorded())
         except BaseException:
             lock.__exit__(None, None, None)
             raise
@@ -114,8 +198,12 @@ class InferenceService:
         started, wall_start = time.monotonic(), utc_now()
         outcome = AttemptOutcome()
         try:
-            async with asyncio.timeout(self.settings.timeout_seconds):
-                reply = await self.provider.predict(self.config.payload(request.event.title))
+            reply = await self._call_provider(
+                request.request_id,
+                self.provider.predict(self.config.payload(request.event.title)),
+                self.settings.timeout_seconds,
+            )
+            validate_tags(reply.tags, reply.metadata)
             outcome.tags, outcome.metadata = reply.tags, reply.metadata
         except ProviderFailure as exc:
             outcome = AttemptOutcome(
@@ -137,6 +225,15 @@ class InferenceService:
             request.request_id, result, outcome.http_status, outcome.state, outcome.retry_after
         )
         return result, outcome.http_status
+
+    async def _call_provider(self, request_id, call, timeout):
+        """Measure one bounded adapter call, including failures and cancellation."""
+        started = time.monotonic()
+        try:
+            async with asyncio.timeout(timeout):
+                return await call
+        finally:
+            self.journal.mark_execution(request_id, provider_seconds=time.monotonic() - started)
 
     def _finished(self, task):
         """Release task bookkeeping and consume errors after caller disconnect."""

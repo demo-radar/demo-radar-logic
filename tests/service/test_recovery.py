@@ -178,24 +178,27 @@ def test_online_recovery_excludes_all_active_processes_and_started_markers(tmp_p
 
 def test_disconnect_keeps_activity_lock_until_the_saved_answer_finishes(tmp_path):
     import asyncio
-    from types import SimpleNamespace
+    from pathlib import Path
 
+    from service.config import InferenceConfig, Settings
     from service.inference.coordinator import InferenceService
     from service.persistence.locking import activity_lock
 
     async def run():
         journal = Journal(tmp_path / "state.sqlite")
-        service = InferenceService(SimpleNamespace(min_interval_seconds=0), None, journal, None)
+        runtime = Settings(token="test-token", database=journal.path, min_interval_seconds=0)
+        config = InferenceConfig(Path(__file__).resolve().parents[2])
+        service = InferenceService(runtime, config, journal, None)
         entered, finish = asyncio.Event(), asyncio.Event()
 
         async def execute():
             entered.set()
             await finish.wait()
             journal.finish("request-1", {"status": "failed"}, 502, "failed")
-            return {}, 502
+            return {"status": "failed"}, 502
 
         caller = asyncio.create_task(service._admit(request(), "id", "key", execute))
-        await entered.wait()
+        await asyncio.wait_for(entered.wait(), timeout=2)
         caller.cancel()
         with pytest.raises(asyncio.CancelledError):
             await caller

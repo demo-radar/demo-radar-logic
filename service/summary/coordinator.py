@@ -1,6 +1,5 @@
 """Admit daily drafts through the same durable slot used for tagging."""
 
-import asyncio
 import logging
 import time
 
@@ -9,11 +8,12 @@ import httpx
 from service.contracts import AttemptStatistics
 from service.errors import error_detail
 from service.inference.coordinator import InferenceService
-from service.inference.results import fingerprint, usage_counts, utc_now
+from service.inference.identity import request_identity
+from service.inference.results import usage_counts, utc_now
 from service.persistence.journal import AdmissionError
 from service.providers.base import ProviderFailure
 from service.summary.config import schema_claim_length
-from service.summary.contracts import SummaryResponse
+from service.summary.contracts import SummaryDraft, SummaryResponse
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,14 @@ class SummaryService(InferenceService):
     This service makes one call per request and never retries an unknown outcome.
     """
 
+    task = "daily-summary"
+
     async def suggest(self, request):
         """Return (saved draft, HTTP status); replay cannot create another call."""
+        replay = self.replay(request)
+        if replay is not None:
+            return replay
+        self.validate_profile(request)
         if (
             request.model_id != self.config.version
             or request.model_id == "daily-summary-v1"
@@ -42,14 +48,7 @@ class SummaryService(InferenceService):
         ):
             raise AdmissionError("synthetic_event_required", 422)
         payload = self.config.payload(request.snapshot)
-        identity = fingerprint(
-            {
-                "request": request.model_dump(),
-                "config": self.config.sha256,
-                "mode": self.settings.mode,
-                "task": "daily-summary",
-            }
-        )
+        identity = request_identity(request, self.config.sha256, self.settings.mode, self.task)
         key = self.config.identity(request.snapshot_sha256, self.settings.mode)
         # Empty days need no provider call and do not occupy the journal slot.
         if not request.snapshot.events:
@@ -68,8 +67,13 @@ class SummaryService(InferenceService):
         started, wall_start = time.monotonic(), utc_now()
         draft, metadata, state, failure = None, {}, "ok", None
         try:
-            async with asyncio.timeout(self.settings.summary_timeout_seconds):
-                draft, metadata = await self.provider.draft(payload)
+            draft, metadata = await self._call_provider(
+                request.request_id,
+                self.provider.draft(payload),
+                self.settings.summary_timeout_seconds,
+            )
+            if not isinstance(draft, SummaryDraft) or not isinstance(metadata, dict):
+                raise ProviderFailure("invalid_summary_schema")
             draft = self.config.resolve_references(draft, request.snapshot)
             self._validate_draft(draft, request.snapshot, metadata)
         except ProviderFailure as exc:

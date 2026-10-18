@@ -11,6 +11,7 @@ import httpx
 
 from service.config import InferenceConfig, Settings
 from service.inference.coordinator import InferenceService
+from service.inference.profiles import TaskProfiles
 from service.persistence.journal import Journal
 from service.persistence.locking import server_lock
 from service.providers.factory import create_provider
@@ -51,6 +52,16 @@ async def _locked_service_lifespan(app, *, runtime, transport):
         app.state.service = InferenceService(
             runtime, config, journal, create_provider(runtime, config, client)
         )
+        app.state.profiles = TaskProfiles()
+        app.state.profiles.add(app.state.service)
+        for version in dict.fromkeys(runtime.retained_tag_configs):
+            if version != config.version:
+                retained = InferenceConfig(runtime.root, version)
+                app.state.profiles.add(
+                    InferenceService(
+                        runtime, retained, journal, create_provider(runtime, retained, client)
+                    )
+                )
         app.state.summary = None
         if runtime.summary_enabled:
             summary_config = SummaryConfig(runtime.root, runtime.summary_config_id)
@@ -65,9 +76,25 @@ async def _locked_service_lifespan(app, *, runtime, transport):
                 Journal(runtime.database, max_attempts=runtime.summary_max_attempts),
                 summary_provider,
             )
+            app.state.profiles.add(app.state.summary)
+            for version in dict.fromkeys(runtime.retained_summary_configs):
+                if version != summary_config.version:
+                    retained = SummaryConfig(runtime.root, version)
+                    provider = (
+                        SyntheticSummaryProvider()
+                        if runtime.mode == "demo"
+                        else HetznerSummaryProvider(client, retained, runtime.provider_key)
+                    )
+                    app.state.profiles.add(
+                        SummaryService(
+                            runtime,
+                            retained,
+                            Journal(runtime.database, max_attempts=runtime.summary_max_attempts),
+                            provider,
+                        )
+                    )
         try:
             yield
         finally:
-            await app.state.service.close()
-            if app.state.summary is not None:
-                await app.state.summary.close()
+            for service in app.state.profiles.services.values():
+                await service.close()

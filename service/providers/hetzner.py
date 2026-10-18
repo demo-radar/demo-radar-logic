@@ -10,8 +10,8 @@ import math
 import time
 from email.utils import parsedate_to_datetime
 
-from demo_logic.taxonomy import topic_tags
-from service.providers.base import ProviderFailure, ProviderResult
+from service.inference.validation import validate_tags
+from service.providers.base import ProviderFailure, ProviderResult, response_metadata
 
 
 def strict_json(value):
@@ -35,20 +35,6 @@ def strict_json(value):
     except (RecursionError, UnicodeError) as exc:
         raise ValueError("Unsupported JSON encoding or nesting") from exc
     return result
-
-
-def response_metadata(body):
-    """Keep valid identity/usage fields even if the generated tags are invalid.
-
-    Do not retain the completion text or other response fields. Invalid metadata
-    fields become null in a failed result; they are never misreported as usage.
-    """
-    body = body if isinstance(body, dict) else {}
-    return {
-        "model": body.get("model") if isinstance(body.get("model"), str) else None,
-        "id": body.get("id") if isinstance(body.get("id"), str) else None,
-        "usage": body.get("usage") if isinstance(body.get("usage"), dict) else None,
-    }
 
 
 def retry_delay(header):
@@ -86,14 +72,9 @@ def parse_response(body):
             raise ValueError("Incomplete completion")
         parsed = strict_json(choice["message"]["content"])
         tags = parsed["tags"]
-        if (
-            set(parsed) != {"tags"}
-            or not isinstance(tags, list)
-            or len(tags) > 2
-            or any(not isinstance(tag, str) or tag not in topic_tags("v2") for tag in tags)
-            or len(set(tags)) != len(tags)
-        ):
+        if set(parsed) != {"tags"}:
             raise ValueError("Invalid tags")
+        validate_tags(tags, response_metadata(body))
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         raise ProviderFailure(
             "invalid_provider_response", metadata=response_metadata(body)

@@ -90,6 +90,10 @@ def check(image):
             raise RuntimeError("Container did not become alive within 20 seconds")
 
         wait_alive()
+        assert call("/v1/task-profiles", authorized=False)[0] == 401
+        status, catalog = call("/v1/task-profiles")
+        assert status == 200 and catalog["unavailable_tasks"] == ["routes"]
+        assert {p["task"] for p in catalog["profiles"]} == {"tagging", "daily-summary"}
         data = {
             "request_id": "smoke-request",
             "job_id": "smoke-job",
@@ -100,6 +104,9 @@ def check(image):
         status, first = call("/v1/tag-suggestions", "POST", data)
         assert status == 200 and first["tags"] == ["mobility"] and first["mode"] == "demo"
         assert first["new_provider_calls"] == 0
+        status, execution = call("/v1/attempts/smoke-request/execution")
+        assert status == 200 and execution["profile_sha256"] == first["config_sha256"]
+        assert execution["origin"] == "legacy" and execution["provider_seconds"] >= 0
         assert call("/v1/tag-suggestions", "POST", data)[1]["replayed"]
         snapshot = {
             "schema_version": 1,
@@ -150,6 +157,7 @@ def check(image):
         saved_daily = call("/v1/attempts/smoke-summary")[1]
         assert saved_daily["replayed"] and saved_daily["draft"] == daily["draft"]
         assert saved_daily["statistics"] == daily["statistics"]
+        assert call("/v1/attempts/smoke-request/execution")[1] == execution
         assert call("/v1/maintenance", "DELETE")[0] == 200
         assert call("/health/ready")[0] == 200
         assert docker("exec", name, "id", "-u") == "10001"

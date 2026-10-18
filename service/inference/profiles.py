@@ -1,0 +1,75 @@
+"""Read-only approved profiles and startup-owned task services."""
+
+from demo_logic.taxonomy import topic_tags
+from service.persistence.journal import AdmissionError
+
+
+def describe_profile(task, config, enabled=True):
+    """Return public identities and limits, never instructions or credentials."""
+    from service.inference.results import fingerprint
+
+    if task == "tagging":
+        instructions = fingerprint(
+            {"wrapper": config.data["wrapper"], "rubric_sha256": config.rubric_sha256}
+        )
+        example = None
+        schema = {
+            "taxonomy": "v2",
+            "maximum_tags": config.data["maximum_predicted_tags"],
+            "allowed_tags": sorted(topic_tags("v2")),
+        }
+        output_tokens = config.data["candidate"]["settings"]["max_completion_tokens"]
+    else:
+        instructions = fingerprint(config.data["system"])
+        example = config.data.get("example", {}).get("sha256")
+        schema = config.data["settings"].get("response_format", {})
+        output_tokens = config.data["settings"]["max_completion_tokens"]
+    return {
+        "task": task,
+        "profile_id": config.version,
+        "profile_sha256": config.sha256,
+        "provider": config.provider,
+        "model": config.model,
+        "instructions_sha256": instructions,
+        "example_sha256": example,
+        "schema_sha256": fingerprint(schema),
+        "maximum_output_tokens": output_tokens,
+        "enabled": enabled,
+    }
+
+
+class TaskProfiles:
+    """Resolve only explicitly loaded profiles; defaults belong to Demo Radar."""
+
+    def __init__(self):
+        self.services = {}
+
+    def add(self, service):
+        key = (service.task, service.config.version)
+        if key in self.services:
+            raise ValueError("Duplicate task profile")
+        self.services[key] = service
+
+    def resolve(self, task, request):
+        if request.execution is not None and request.execution.task != task:
+            raise AdmissionError("unsupported_task_profile", 422)
+        service = self.services.get((task, request.model_id))
+        if service is None:
+            raise AdmissionError("unsupported_configuration", 422)
+        if (
+            request.execution is not None
+            and request.execution.profile_sha256 != service.config.sha256
+        ):
+            raise AdmissionError("unsupported_configuration", 422)
+        return service
+
+    def catalog(self):
+        return {
+            "schema_version": 1,
+            "profiles": [describe_profile(s.task, s.config) for s in self.services.values()],
+            "unavailable_tasks": [
+                task
+                for task in ("tagging", "daily-summary", "routes")
+                if not any(key[0] == task for key in self.services)
+            ],
+        }

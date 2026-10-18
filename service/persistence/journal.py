@@ -7,6 +7,7 @@ Never clear a started/unknown request automatically on startup: a provider may
 still be running after a crash. Reconcile it before accepting new inference.
 """
 
+import hashlib
 import json
 import math
 import os
@@ -102,7 +103,66 @@ class Journal:
                     BEFORE {operation} ON control
                     WHEN NEW.maintenance NOT IN (0,1) OR NEW.next_allowed < 0
                     BEGIN SELECT RAISE(ABORT, 'Invalid control state'); END""")
+            # Additive side table: older binaries can still read and replay attempts.
+            db.execute("""CREATE TABLE IF NOT EXISTS attempt_execution (
+                request_id TEXT PRIMARY KEY REFERENCES attempts(request_id),
+                allowance_key TEXT NOT NULL, snapshot TEXT NOT NULL,
+                execution_started_at TEXT, provider_seconds REAL
+            )""")
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS execution_allowance ON attempt_execution(allowance_key)"
+            )
+            db.execute("""CREATE TRIGGER IF NOT EXISTS execution_snapshot_immutable
+                BEFORE UPDATE OF snapshot, allowance_key ON attempt_execution
+                BEGIN SELECT RAISE(ABORT, 'Execution snapshot is immutable'); END""")
+            self._backfill_execution(db)
             db.execute("PRAGMA user_version = 2")
+
+    @staticmethod
+    def _backfill_execution(db):
+        """Recover only identities actually recorded by older service versions."""
+        rows = db.execute(
+            "SELECT a.* FROM attempts a LEFT JOIN attempt_execution e USING(request_id) WHERE e.request_id IS NULL AND a.result IS NOT NULL"
+        ).fetchall()
+        for row in rows:
+            try:
+                body = json.loads(row["result"])
+                task = "daily-summary" if "snapshot_sha256" in body else "tagging"
+                source = body["snapshot_sha256" if task == "daily-summary" else "input_sha256"]
+                mode, version, sha = body["mode"], body["config_version"], body["config_sha256"]
+                if not all(isinstance(v, str) and v for v in (source, mode, version, sha)):
+                    continue
+                stats = body.get("statistics") or {}
+                context = {
+                    "task": task,
+                    "source_sha256": source,
+                    "mode": mode,
+                    "profile_id": version,
+                    "profile_sha256": sha,
+                    "provider": stats.get("provider"),
+                    "model": stats.get("requested_model"),
+                    "origin": "legacy",
+                    "environment": "unspecified",
+                    "request_id": row["request_id"],
+                    "job_id": row["job_id"],
+                    "admitted_at": row["started_at"],
+                    "evidence": "legacy-result",
+                }
+                allowance = hashlib.sha256(
+                    json.dumps(
+                        {"task": task, "mode": mode, "source": source},
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode()
+                ).hexdigest()
+                db.execute(
+                    "INSERT INTO attempt_execution(request_id, allowance_key, snapshot) VALUES(?,?,?)",
+                    (row["request_id"], allowance, json.dumps(context, allow_nan=False)),
+                )
+            except (KeyError, TypeError, ValueError):
+                # Old partial evidence remains readable; never invent its profile/usage.
+                continue
 
     @contextmanager
     def connection(self):
@@ -116,7 +176,18 @@ class Journal:
         finally:
             db.close()
 
-    def begin(self, request, identity, event_key, interval, *, event_id=None, max_attempts=None):
+    def begin(
+        self,
+        request,
+        identity,
+        event_key,
+        interval,
+        *,
+        event_id=None,
+        max_attempts=None,
+        execution=None,
+        allowance_key=None,
+    ):
         """Atomically replay or reserve one attempt, enforcing persisted caps.
 
         Busy, maintenance, pacing and exhausted limits make no provider call.
@@ -172,8 +243,55 @@ class Journal:
             ).fetchall()
             if any(row["status"] == "ok" for row in prior):
                 raise AdmissionError("event_already_completed_use_original_request")
-            if len(prior) >= attempt_limit:
+            if allowance_key is not None:
+                shared = db.execute(
+                    "SELECT a.status, r.request_id AS resolved FROM attempts a "
+                    "JOIN attempt_execution e USING(request_id) "
+                    "LEFT JOIN attempt_resolutions r USING(request_id) WHERE e.allowance_key=?",
+                    (allowance_key,),
+                ).fetchall()
+                if any(row["resolved"] for row in shared):
+                    raise AdmissionError("event_outcome_closed_unknown")
+                # Config-aware reuse stays separate from the shared retry allowance.
+                used = (
+                    len(shared)
+                    + db.execute(
+                        "SELECT COUNT(*) FROM attempts a LEFT JOIN attempt_execution e USING(request_id) "
+                        "WHERE a.event_key=? AND e.request_id IS NULL",
+                        (event_key,),
+                    ).fetchone()[0]
+                )
+            else:
+                used = len(prior)
+            saved_limits = db.execute(
+                "SELECT e.snapshot FROM attempts a JOIN attempt_execution e USING(request_id) WHERE a.job_id=?",
+                (request.job_id,),
+            ).fetchall()
+            for saved in saved_limits:
+                limit = json.loads(saved["snapshot"]).get("attempt_limit")
+                if type(limit) is int:
+                    attempt_limit = min(attempt_limit, limit)
+            if execution is not None:
+                execution = {**execution, "attempt_limit": attempt_limit}
+            if used >= attempt_limit:
                 raise AdmissionError("event_attempt_limit", 429)
+            if execution is not None:
+                pinned = db.execute(
+                    "SELECT e.snapshot FROM attempts a JOIN attempt_execution e USING(request_id) WHERE a.job_id=? LIMIT 1",
+                    (request.job_id,),
+                ).fetchone()
+                if pinned is not None and any(
+                    json.loads(pinned["snapshot"])[key] != execution[key]
+                    for key in (
+                        "task",
+                        "profile_id",
+                        "profile_sha256",
+                        "mode",
+                        "origin",
+                        "environment",
+                    )
+                ):
+                    raise AdmissionError("job_configuration_mismatch")
             batch = db.execute(
                 "SELECT event_id FROM attempts WHERE job_id=?", (request.job_id,)
             ).fetchall()
@@ -193,6 +311,11 @@ class Journal:
                     datetime.now(UTC).isoformat(),
                 ),
             )
+            if execution is not None:
+                db.execute(
+                    "INSERT INTO attempt_execution(request_id, allowance_key, snapshot) VALUES(?,?,?)",
+                    (request.request_id, allowance_key, json.dumps(execution, allow_nan=False)),
+                )
             db.execute("UPDATE control SET next_allowed=? WHERE id=1", (now + interval,))
         return None
 
@@ -268,6 +391,48 @@ class Journal:
             "started_at": row["started_at"],
             "usage_raw": None,
         }, 202
+
+    def replay(self, request_id, identity):
+        """Check original request identity before returning unchanged saved evidence."""
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT identity, result, http_status FROM attempts WHERE request_id=?",
+                (request_id,),
+            ).fetchone()
+        if row is None or row["identity"] != identity:
+            raise AdmissionError("idempotency_conflict")
+        if row["result"] is None:
+            raise AdmissionError("attempt_unresolved")
+        body, _ = self.get_attempt(request_id)
+        return body, row["http_status"]
+
+    def execution(self, request_id):
+        """Read private configuration/timing evidence without requiring its old assets."""
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT * FROM attempt_execution WHERE request_id=?", (request_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            **json.loads(row["snapshot"]),
+            "execution_started_at": row["execution_started_at"],
+            "provider_seconds": row["provider_seconds"],
+        }
+
+    def mark_execution(self, request_id, *, started_at=None, provider_seconds=None):
+        """Persist measured phase boundaries without changing the pinned snapshot."""
+        with self.connection() as db:
+            if started_at is not None:
+                db.execute(
+                    "UPDATE attempt_execution SET execution_started_at=COALESCE(execution_started_at, ?) WHERE request_id=?",
+                    (started_at, request_id),
+                )
+            if provider_seconds is not None:
+                db.execute(
+                    "UPDATE attempt_execution SET provider_seconds=? WHERE request_id=?",
+                    (provider_seconds, request_id),
+                )
 
     def retry_headers(self):
         """Return the remaining persisted cooldown for a replayed failure.

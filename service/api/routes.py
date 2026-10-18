@@ -139,11 +139,32 @@ async def schema(request: Request):
 
 
 @router.post("/v1/tag-suggestions", dependencies=auth, response_model=TagResponse)
-async def suggest(request: TagRequest, service: Service):
+async def suggest(request: TagRequest, service: Service, http_request: Request):
     """Return one suggestion or replay; rejected/busy work is never queued here."""
-    result, status = await service.suggest(request)
+    replay = service.replay(request)
+    selected = (
+        service
+        if replay is not None
+        else http_request.app.state.profiles.resolve("tagging", request)
+    )
+    result, status = replay if replay is not None else await selected.suggest(request)
     headers = service.journal.retry_headers() if status == 429 else {}
     return JSONResponse(status_code=status, content=result, headers=headers)
+
+
+@router.get("/v1/task-profiles", dependencies=auth)
+async def task_profiles(http_request: Request):
+    """List executable approved profiles; no inference or default updates."""
+    return http_request.app.state.profiles.catalog()
+
+
+@router.get("/v1/attempts/{request_id}/execution", dependencies=auth)
+async def execution_context(request_id: str, service: Service):
+    """Read private saved context and timings, including retired profiles."""
+    context = service.journal.execution(request_id)
+    if context is None:
+        raise HTTPException(404, detail="Execution context unavailable for this attempt")
+    return context
 
 
 @router.get("/v1/daily-summary-contract", dependencies=auth)
@@ -169,6 +190,12 @@ async def summary_draft(request: SummaryRequest, http_request: Request):
     service = http_request.app.state.summary
     if service is None:
         raise AdmissionError("summary_disabled", 503)
-    result, status = await service.suggest(request)
+    replay = service.replay(request)
+    selected = (
+        service
+        if replay is not None
+        else http_request.app.state.profiles.resolve("daily-summary", request)
+    )
+    result, status = replay if replay is not None else await selected.suggest(request)
     headers = service.journal.retry_headers() if status == 429 else {}
     return JSONResponse(status_code=status, content=result, headers=headers)

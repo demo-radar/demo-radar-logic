@@ -13,10 +13,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 
 from service.contracts import TagRequest, TagResponse
+from service.inference.contracts import ProfileCatalog
 from service.inference.coordinator import InferenceService
 from service.inference.recovery import RecoveryService
 from service.persistence.journal import AdmissionError
-from service.summary.contracts import SummaryRequest, SummaryResponse
+from service.summary.contracts import SummaryProfileContract, SummaryRequest, SummaryResponse
 
 router = APIRouter()
 bearer = HTTPBearer(auto_error=False)
@@ -152,7 +153,12 @@ async def suggest(request: TagRequest, service: Service, http_request: Request):
     return JSONResponse(status_code=status, content=result, headers=headers)
 
 
-@router.get("/v1/task-profiles", dependencies=auth)
+@router.get(
+    "/v1/task-profiles",
+    dependencies=auth,
+    response_model=ProfileCatalog,
+    response_model_exclude_unset=True,
+)
 async def task_profiles(http_request: Request):
     """List executable approved profiles; no inference or default updates."""
     return http_request.app.state.profiles.catalog()
@@ -167,7 +173,12 @@ async def execution_context(request_id: str, service: Service):
     return context
 
 
-@router.get("/v1/daily-summary-contract", dependencies=auth)
+@router.get(
+    "/v1/daily-summary-contract",
+    dependencies=auth,
+    response_model=SummaryProfileContract,
+    response_model_exclude_unset=True,
+)
 async def summary_contract(http_request: Request, config_id: str | None = None):
     """Read the active contract, or an old contract for saved-result validation.
 

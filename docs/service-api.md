@@ -211,8 +211,23 @@ auth/routes, `inference/` admission/results/recovery, `providers/` transport,
 `persistence/` durable state and `summary/` the daily contract. Request/response
 schemas and safe errors remain shared at the service root.
 
+The boundary schemas live with their feature:
+
+| File | Owns |
+| --- | --- |
+| `service/contracts.py` | Tag requests/responses, strict usage statistics and safe errors |
+| `service/inference/contracts.py` | Typed task-profile descriptions and catalog responses |
+| `service/providers/gemini_contracts.py` | Native Gemini metadata, candidates and token counts |
+| `service/summary/contracts.py` | Daily facts, legacy/current draft shapes, assignments and summary contracts |
+| `tests/service/test_response_schemas.py` | Regression cases for strict types, old formats and retained usage |
+
+Pydantic checks structure and types. Source matching, approved destinations, fingerprints,
+spending admission and recovery decisions remain explicit service rules. Gemini metadata is
+read before candidate validation so an invalid answer does not discard known usage. Catalog
+serialization excludes unset defaults to preserve existing contract descriptions and hashes.
+Environment settings remain dataclasses pending their separate cleanup.
+
 Public CI checks lint/format, synthetic tests and the publication boundary, then
 builds the image and runs the isolated Docker smoke script. These checks require
-no private dataset or provider key. Image publication uses a separate manual
-workflow; publishing an image is not deployment acceptance. See the
+no private dataset or provider key. Publishing an image is not deployment acceptance. See the
 [ARM64 release guide](release-images.md) for digest records and pull commands.

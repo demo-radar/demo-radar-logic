@@ -6,7 +6,12 @@ from pydantic import ValidationError
 
 from service.providers.base import ProviderFailure, response_metadata
 from service.providers.hetzner import strict_json
-from service.summary.contracts import SummaryDraft
+from service.summary.contracts import (
+    SummaryAssignments,
+    SummaryDraft,
+    SummaryDraftV2,
+    TopicGroups,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +24,10 @@ class SummaryParser:
         self.omit_unassigned = config.data.get("unused_topic_policy") == "omit-unassigned-v1"
         self.draft_schema_version = config.data.get("draft_schema_version", 1)
         self.returned_models = config.data.get("returned_model_ids", [config.model])
+        schemas = {1: SummaryDraft, 2: SummaryDraftV2}
+        if type(self.draft_schema_version) is not int or self.draft_schema_version not in schemas:
+            raise ValueError("Unsupported summary draft schema")
+        self.draft_schema = schemas[self.draft_schema_version]
 
     def parse_draft(self, body, payload):
         """Apply the same output checks to every approved summary provider."""
@@ -38,38 +47,28 @@ class SummaryParser:
             raise ProviderFailure("invalid_summary_json", metadata=metadata) from exc
         if self.assignment_style == "per-event-position-v1":
             parsed = self.normalize_assignments(parsed, payload, metadata)
-        if (
-            self.omit_unassigned
-            and isinstance(parsed, dict)
-            and isinstance(parsed.get("topics"), list)
-        ):
-            topics = parsed["topics"]
-            # An empty claim has no support and is never published as prose.
-            if all(
-                isinstance(topic, dict) and isinstance(topic.get("event_ids"), list)
-                for topic in topics
-            ):
-                parsed["topics"] = [topic for topic in topics if topic["event_ids"]]
-                omitted = len(topics) - len(parsed["topics"])
+        try:
+            if self.omit_unassigned:
+                groups = TopicGroups.model_validate(parsed)
+                topics = [
+                    raw
+                    for raw, topic in zip(parsed["topics"], groups.topics, strict=True)
+                    if topic.event_ids
+                ]
+                omitted = len(groups.topics) - len(topics)
                 if omitted:
                     logger.info("event=summary_unassigned_topics_omitted count=%s", omitted)
-        if self.draft_schema_version == 2 and (
-            not isinstance(parsed, dict)
-            or set(parsed) != {"overview", "topics", "highlight", "limitations"}
-        ):
-            logger.warning(
-                "event=summary_rejected reason=fields schema=%s", self.draft_schema_version
-            )
-            raise ProviderFailure("invalid_summary_schema", metadata=metadata)
-        try:
-            draft = SummaryDraft.model_validate(parsed, strict=True)
+                parsed = {**parsed, "topics": topics}
+            draft = self.draft_schema.model_validate(parsed, strict=True)
         except ValidationError as exc:
-            # Record only field paths and error types; never source facts or prose.
-            issues = [
-                (error["loc"], error["type"])
-                for error in exc.errors(include_input=False, include_url=False)
-            ]
-            logger.warning("event=summary_rejected reason=shape issues=%s", issues)
+            # Field paths may contain generated keys; log categories and counts only.
+            issues = exc.errors(include_input=False, include_url=False)
+            categories = sorted({issue["type"] for issue in issues})
+            logger.warning(
+                "event=summary_rejected reason=shape error_types=%s count=%s",
+                categories,
+                len(issues),
+            )
             raise ProviderFailure("invalid_summary_schema", metadata=metadata) from exc
         return draft, response_metadata(body)
 
@@ -81,45 +80,27 @@ class SummaryParser:
         Each entry contains distinct, valid topic numbers. No missing event is
         silently assigned by the service; invalid output remains a saved failure.
         """
-        required = {"overview", "topics", "assignments", "highlight", "limitations"}
-        if not isinstance(parsed, dict) or set(parsed) != required:
-            raise ProviderFailure("invalid_summary_schema", metadata=metadata)
         source = strict_json(payload["messages"][-1]["content"])
         references = source["required_event_ids"]
-        assignments, topics = parsed["assignments"], parsed["topics"]
-        if not isinstance(assignments, list) or len(assignments) != len(references):
-            logger.warning(
-                "event=summary_rejected reason=assignments expected=%s returned=%s",
-                len(references),
-                len(assignments) if isinstance(assignments, list) else -1,
-            )
-            raise ProviderFailure("invalid_summary_schema", metadata=metadata)
         topic_schema = payload["response_format"]["json_schema"]["schema"]["properties"]["topics"][
             "items"
         ]
-        required_fields = set(topic_schema["required"])
-        allowed_fields = {"label", "text", "include_in_briefing"}
-        if (
-            not isinstance(topics, list)
-            or not 1 <= len(topics) <= 8
-            or any(
-                not isinstance(topic, dict) or not required_fields <= set(topic) <= allowed_fields
-                for topic in topics
+        try:
+            assignments = SummaryAssignments.model_validate(
+                parsed, context={"required_topic_fields": set(topic_schema["required"])}
             )
-        ):
+        except ValidationError as exc:
+            raise ProviderFailure("invalid_summary_schema", metadata=metadata) from exc
+        if len(assignments.assignments) != len(references):
+            logger.warning(
+                "event=summary_rejected reason=assignments expected=%s returned=%s",
+                len(references),
+                len(assignments.assignments),
+            )
             raise ProviderFailure("invalid_summary_schema", metadata=metadata)
         result = {key: value for key, value in parsed.items() if key != "assignments"}
-        result["topics"] = [{**topic, "event_ids": []} for topic in topics]
-        for identifier, numbers in zip(references, assignments, strict=True):
-            if (
-                not isinstance(numbers, list)
-                or not numbers
-                or any(
-                    type(number) is not int or not 1 <= number <= len(topics) for number in numbers
-                )
-                or len(numbers) != len(set(numbers))
-            ):
-                raise ProviderFailure("invalid_summary_schema", metadata=metadata)
+        result["topics"] = [{**topic, "event_ids": []} for topic in parsed["topics"]]
+        for identifier, numbers in zip(references, assignments.assignments, strict=True):
             for number in numbers:
                 result["topics"][number - 1]["event_ids"].append(identifier)
         return result

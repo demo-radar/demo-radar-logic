@@ -1,6 +1,7 @@
 """Read-only approved profiles and startup-owned task services."""
 
 from demo_logic.taxonomy import topic_tags
+from service.inference.contracts import ProfileCatalog, ProfileDescriptor
 from service.persistence.journal import AdmissionError
 
 
@@ -37,7 +38,7 @@ def describe_profile(task, config, enabled=True):
             "maximum_tags": 2,
         }
     )
-    return {
+    descriptor = {
         "contract": contract,
         "task": task,
         "profile_id": config.version,
@@ -50,6 +51,7 @@ def describe_profile(task, config, enabled=True):
         "maximum_output_tokens": output_tokens,
         "enabled": enabled,
     }
+    return ProfileDescriptor.model_validate(descriptor).model_dump(mode="json", exclude_unset=True)
 
 
 class TaskProfiles:
@@ -89,15 +91,18 @@ class TaskProfiles:
         descriptor = describe_profile(service.task, service.config, enabled)
         if service.task == "daily-summary":
             descriptor["contract"]["max_attempts"] = service.settings.summary_max_attempts
-        return {**descriptor, "unavailable_reason": reason}
+        return ProfileDescriptor.model_validate(
+            {**descriptor, "unavailable_reason": reason}
+        ).model_dump(mode="json", exclude_unset=True)
 
     def catalog(self):
-        return {
-            "schema_version": 1,
-            "profiles": [self.describe(s) for s in self.services.values()],
-            "unavailable_tasks": [
+        catalog = ProfileCatalog(
+            schema_version=1,
+            profiles=[self.describe(service) for service in self.services.values()],
+            unavailable_tasks=[
                 task
                 for task in ("tagging", "daily-summary", "routes")
                 if not any(key[0] == task for key in self.services)
             ],
-        }
+        )
+        return catalog.model_dump(mode="json", exclude_unset=True)

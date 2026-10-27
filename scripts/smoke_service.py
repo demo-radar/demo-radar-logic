@@ -130,11 +130,13 @@ def check(image):
                 }
             ],
         }
+        status, summary_contract = call("/v1/daily-summary-contract")
+        assert status == 200
         summary = {
             "request_id": "smoke-summary",
             "job_id": "smoke-summary-job",
-            "model_id": "daily-summary-v1",
-            "config_sha256": call("/v1/daily-summary-contract")[1]["config_sha256"],
+            "model_id": summary_contract["config_id"],
+            "config_sha256": summary_contract["config_sha256"],
             "snapshot": snapshot,
             "snapshot_sha256": hashlib.sha256(
                 json.dumps(
@@ -143,7 +145,7 @@ def check(image):
             ).hexdigest(),
         }
         status, daily = call("/v1/daily-summary-drafts", "POST", summary)
-        assert status == 200 and daily["status"] == "draft"
+        assert status == 200 and daily["status"] == "draft", (status, daily.get("error"))
         assert daily["new_provider_calls"] == 0 and daily["requires_staff_review"]
         assert call("/v1/daily-summary-drafts", "POST", summary)[1]["replayed"]
         assert call("/v1/maintenance", "POST")[1]["drained"]

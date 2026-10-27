@@ -132,6 +132,10 @@ class SummaryProvider:
         self.transport = transport
         self.parser = SummaryParser(config)
 
+    async def count_tokens(self, payload):
+        """Use the selected transport's token count before paid admission."""
+        return await self.transport.count_tokens(payload)
+
     async def draft(self, payload):
         body = await self.transport.response_body(payload)
         return self.parser.parse_draft(body, payload)

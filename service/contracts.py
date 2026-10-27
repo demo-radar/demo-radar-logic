@@ -12,13 +12,42 @@ Unsupported fields return HTTP 422 before inference. Results are checked before
 being saved; an invalid response must not become a replayable success.
 """
 
+from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 Identifier = Annotated[
     str, StringConstraints(min_length=1, max_length=160, pattern=r"^[A-Za-z0-9_.:-]+$")
 ]
+
+Fingerprint = Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
+
+
+def require_review(value):
+    """Keep Literal[True] from accepting the integer 1."""
+    if value is not True:
+        raise ValueError("Model suggestions must require review")
+    return value
+
+
+ReviewRequired = Annotated[Literal[True], BeforeValidator(require_review)]
+
+
+def aware_timestamp(value: str) -> datetime:
+    """Parse an offset timestamp without rewriting its saved representation."""
+    result = datetime.fromisoformat(value)
+    if result.utcoffset() is None:
+        raise ValueError("Attempt timestamps need a UTC offset")
+    return result
 
 
 class Event(BaseModel):
@@ -102,25 +131,38 @@ class AttemptStatistics(BaseModel):
     a live attempt was made, not that the provider billed it.
     """
 
-    schema_version: Literal[1]
+    model_config = ConfigDict(extra="ignore", strict=True)
+    schema_version: int = Field(ge=1, le=1)
     attempt_id: str
-    attempt_number: int
+    attempt_number: int = Field(ge=1)
     provider: str
     requested_model: str
     returned_model: str | None
     provider_request_id: str | None
     started_at: str
     finished_at: str
-    duration_seconds: float
+    duration_seconds: float = Field(ge=0, le=86400, allow_inf_nan=False)
     provider_call_occurred: bool
     outcome: Literal["ok", "failed", "unknown"]
     usage_raw: dict | None
-    input_tokens: int | None
-    output_tokens: int | None
-    total_tokens: int | None
-    cached_input_tokens: int | None
-    reasoning_tokens: int | None
+    input_tokens: int | None = Field(ge=0)
+    output_tokens: int | None = Field(ge=0)
+    total_tokens: int | None = Field(ge=0)
+    cached_input_tokens: int | None = Field(ge=0)
+    reasoning_tokens: int | None = Field(ge=0)
     token_semantics: str
+
+    @field_validator("started_at", "finished_at")
+    @classmethod
+    def offset_time(cls, value):
+        aware_timestamp(value)
+        return value
+
+    @model_validator(mode="after")
+    def ordered_times(self):
+        if aware_timestamp(self.finished_at) < aware_timestamp(self.started_at):
+            raise ValueError("An attempt cannot finish before it starts")
+        return self
 
 
 class ErrorDetail(BaseModel):
@@ -136,11 +178,12 @@ class ErrorDetail(BaseModel):
         fields: Invalid input field paths, if this was a validation error.
     """
 
-    code: str
-    message: str
-    http_status: int
+    model_config = ConfigDict(extra="ignore", strict=True)
+    code: str = Field(min_length=1, max_length=100, pattern=r"^[a-z][a-z0-9_]*$")
+    message: str = Field(min_length=1)
+    http_status: int = Field(ge=400, le=599)
     retryable: bool = False
-    retry_after_seconds: float = 0
+    retry_after_seconds: float = Field(default=0, ge=0, allow_inf_nan=False)
     fields: list[list[str]] | None = None
 
 
@@ -157,6 +200,7 @@ class TagResponse(BaseModel):
     zero provider calls. No calibrated confidence is claimed by this schema.
     """
 
+    model_config = ConfigDict(extra="ignore", strict=True)
     request_id: str
     job_id: str
     event_id: str
@@ -170,8 +214,8 @@ class TagResponse(BaseModel):
     mode: Literal["demo", "live"]
     tags: list[str] | None
     status: Literal["suggested", "abstained", "failed", "unknown"]
-    requires_staff_review: Literal[True]
+    requires_staff_review: ReviewRequired
     error: ErrorDetail | None
     replayed: bool
-    new_provider_calls: int
+    new_provider_calls: int = Field(ge=0, le=1)
     statistics: AttemptStatistics

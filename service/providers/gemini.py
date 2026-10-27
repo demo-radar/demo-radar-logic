@@ -3,8 +3,10 @@
 import json
 
 import httpx
+from pydantic import ValidationError
 
 from service.providers.base import ProviderFailure, ProviderResult, response_metadata
+from service.providers.gemini_contracts import GeminiCompletion, GeminiMetadata, GeminiTokenCount
 from service.providers.hetzner import parse_response, retry_delay, strict_json
 from service.providers.models import MODEL_CATALOG
 
@@ -93,13 +95,9 @@ class GeminiProvider:
                         raise ValueError("Token count response too large")
             if response.status_code != 200:
                 raise ValueError("Token count unavailable")
-            count = strict_json(chunks)["totalTokens"]
+            count = GeminiTokenCount.model_validate(strict_json(chunks)).total_tokens
             pricing = MODEL_CATALOG[self.model].pricing
-            if (
-                pricing is None
-                or type(count) is not int
-                or not 0 <= count <= pricing["maximum_input_tokens"]
-            ):
+            if pricing is None or not 0 <= count <= pricing["maximum_input_tokens"]:
                 raise ValueError("Invalid token count")
             return count
         except (httpx.RequestError, ValueError, TypeError, KeyError) as exc:
@@ -128,47 +126,20 @@ class GeminiProvider:
             body = strict_json(chunks)
         except (ValueError, TypeError) as exc:
             raise ProviderFailure("invalid_provider_json", unknown=True) from exc
-        if not isinstance(body, dict):
-            raise ProviderFailure("invalid_provider_response", unknown=True)
-        usage = body.get("usageMetadata")
-        normalized = None
-        if isinstance(usage, dict):
-
-            def count(key):
-                value = usage.get(key)
-                return value if type(value) is int and value >= 0 else None
-
-            output, thinking = count("candidatesTokenCount"), count("thoughtsTokenCount")
-            # A missing count remains unknown; it is never evidence of zero spend.
-            normalized = {
-                "prompt_tokens": count("promptTokenCount"),
-                "completion_tokens": output + thinking
-                if output is not None and thinking is not None
-                else None,
-                "total_tokens": count("totalTokenCount"),
-                "prompt_tokens_details": {"cached_tokens": count("cachedContentTokenCount")},
-                "completion_tokens_details": {"reasoning_tokens": thinking},
-                "gemini": usage,
-            }
-        result = {
-            "model": body.get("modelVersion"),
-            "id": body.get("responseId"),
-            "usage": normalized,
-        }
+        try:
+            result = GeminiMetadata.model_validate(body).evidence(body)
+        except ValidationError as exc:
+            raise ProviderFailure("invalid_provider_response", unknown=True) from exc
         metadata = response_metadata(result)
         try:
-            candidates = body["candidates"]
-            if (
-                len(candidates) != 1
-                or candidates[0]["finishReason"] != "STOP"
-                or result["model"] != self.model
-            ):
+            completion = GeminiCompletion.model_validate(body)
+            candidate = completion.candidates[0]
+            if candidate.finish_reason != "STOP" or completion.model_version != self.model:
                 raise ValueError("Incomplete or mismatched response")
-            parts = candidates[0]["content"]["parts"]
-            content = "".join(part["text"] for part in parts if part.get("thought") is not True)
+            content = "".join(part.text for part in candidate.content.parts if not part.thought)
             result["choices"] = [{"finish_reason": "stop", "message": {"content": content}}]
             return result
-        except (TypeError, KeyError, IndexError, ValueError, AttributeError) as exc:
+        except (ValidationError, ValueError) as exc:
             raise ProviderFailure("invalid_provider_response", metadata=metadata) from exc
 
     async def predict(self, payload):

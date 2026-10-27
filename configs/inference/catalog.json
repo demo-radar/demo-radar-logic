@@ -6,6 +6,12 @@
       "sha256": "c8db919ef32fd06bcc938df96c0e3ae8894d718912cb84f76855a9492e5f4731",
       "provider": "hetzner",
       "rubric_version": "4"
+    },
+    "gemini-v4-v1": {
+      "path": "configs/inference/gemini-v4-v1.json",
+      "sha256": "ccdb468e3da08458e8bf439fb86bfdd17650aee0ec5248bea4a3f16677b577da",
+      "provider": "gemini",
+      "rubric_version": "4"
     }
   }
 }

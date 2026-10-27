@@ -14,10 +14,9 @@ from service.inference.coordinator import InferenceService
 from service.inference.profiles import TaskProfiles
 from service.persistence.journal import Journal
 from service.persistence.locking import server_lock
-from service.providers.factory import create_provider
+from service.providers.factory import create_provider, create_summary_provider
 from service.summary.config import SummaryConfig
 from service.summary.coordinator import SummaryService
-from service.summary.provider import HetznerSummaryProvider, SyntheticSummaryProvider
 
 
 @asynccontextmanager
@@ -54,7 +53,7 @@ async def _locked_service_lifespan(app, *, runtime, transport):
         )
         app.state.profiles = TaskProfiles()
         app.state.profiles.add(app.state.service)
-        for version in dict.fromkeys(runtime.retained_tag_configs):
+        for version in dict.fromkeys((*runtime.retained_tag_configs, "gemini-v4-v1")):
             if version != config.version:
                 retained = InferenceConfig(runtime.root, version)
                 app.state.profiles.add(
@@ -64,35 +63,23 @@ async def _locked_service_lifespan(app, *, runtime, transport):
                 )
         app.state.summary = None
         if runtime.summary_enabled:
-            summary_config = SummaryConfig(runtime.root, runtime.summary_config_id)
-            summary_provider = (
-                SyntheticSummaryProvider()
-                if runtime.mode == "demo"
-                else HetznerSummaryProvider(client, summary_config, runtime.provider_key)
+            versions = dict.fromkeys(
+                (
+                    runtime.summary_config_id, *runtime.retained_summary_configs,
+                    "hetzner-daily-v1", "gemini-daily-v1",
+                )
             )
-            app.state.summary = SummaryService(
-                runtime,
-                summary_config,
-                Journal(runtime.database, max_attempts=runtime.summary_max_attempts),
-                summary_provider,
-            )
-            app.state.profiles.add(app.state.summary)
-            for version in dict.fromkeys(runtime.retained_summary_configs):
-                if version != summary_config.version:
-                    retained = SummaryConfig(runtime.root, version)
-                    provider = (
-                        SyntheticSummaryProvider()
-                        if runtime.mode == "demo"
-                        else HetznerSummaryProvider(client, retained, runtime.provider_key)
-                    )
-                    app.state.profiles.add(
-                        SummaryService(
-                            runtime,
-                            retained,
-                            Journal(runtime.database, max_attempts=runtime.summary_max_attempts),
-                            provider,
-                        )
-                    )
+            for version in versions:
+                summary_config = SummaryConfig(runtime.root, version)
+                service = SummaryService(
+                    runtime,
+                    summary_config,
+                    Journal(runtime.database, max_attempts=runtime.summary_max_attempts),
+                    create_summary_provider(runtime, summary_config, client),
+                )
+                app.state.profiles.add(service)
+                if version == runtime.summary_config_id:
+                    app.state.summary = service
         try:
             yield
         finally:

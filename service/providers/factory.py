@@ -6,20 +6,25 @@ fallback; a provider failure returns through the shared ProviderFailure contract
 """
 
 from service.providers.base import TagProvider
-from service.providers.hetzner import QwenProvider
+from service.providers.gemini import GeminiProvider
+from service.providers.hetzner import HetznerProvider
 from service.providers.synthetic import SyntheticProvider
+from service.summary.provider import SummaryProvider, SyntheticSummaryProvider
 
 
 def create_provider(settings, config, client) -> TagProvider:
-    """Build one profile adapter at startup; never silently enable a paid provider.
-
-    Inputs are runtime settings, an approved model config and a managed client.
-    Returns SyntheticProvider in demo mode or QwenProvider for live Hetzner.
-    A future GeminiProvider belongs here after its config, token normalization,
-    pricing guard and tests exist. Unknown live providers fail startup.
-    """
+    """Select a reviewed adapter; dispatch admission checks credentials and budgets."""
     if settings.mode == "demo":
         return SyntheticProvider()
+    if config.provider == "gemini":
+        return GeminiProvider(client, config, settings.gemini_key)
     if config.provider == "hetzner":
-        return QwenProvider(client, config, settings.provider_key)
+        return HetznerProvider(client, config, settings.provider_key)
     raise ValueError("No live adapter is available for this provider")
+
+
+def create_summary_provider(settings, config, client):
+    """Use the same vendor selection with task-specific summary validation."""
+    if settings.mode == "demo":
+        return SyntheticSummaryProvider()
+    return SummaryProvider(create_provider(settings, config, client), config)

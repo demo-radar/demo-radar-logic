@@ -614,7 +614,7 @@ def test_legacy_journal_upgrade_preserves_results_and_cooldown(tmp_path):
     assert saved["statistics"]["total_tokens"] == 9
     assert int(journal.retry_headers()["Retry-After"]) > 0
     with journal.connection() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 3
         assert (
             db.execute("SELECT result, started_at FROM attempts").fetchone()[1] == "original-time"
         )
@@ -642,7 +642,7 @@ def test_schema_guards_and_completed_results_cannot_be_overwritten(tmp_path):
 
 def test_provider_factory_is_explicit_and_secrets_are_not_repr(tmp_path):
     from service.providers.factory import create_provider
-    from service.providers.hetzner import QwenProvider
+    from service.providers.hetzner import HetznerProvider
     from service.providers.synthetic import SyntheticProvider
 
     config = InferenceConfig(ROOT)
@@ -651,11 +651,11 @@ def test_provider_factory_is_explicit_and_secrets_are_not_repr(tmp_path):
     live_settings = settings(
         tmp_path, mode="live", provider_key="private-value", free_tier_confirmed=True
     )
-    assert isinstance(create_provider(live_settings, config, None), QwenProvider)
+    assert isinstance(create_provider(live_settings, config, None), HetznerProvider)
     assert "private-value" not in repr(live_settings)
     assert "synthetic-test-token" not in repr(live_settings)
     config.provider = "gemini"
-    with pytest.raises(ValueError, match="adapter"):
+    with pytest.raises(ValueError, match="Unsupported Gemini"):
         create_provider(live_settings, config, None)
 
 
@@ -672,13 +672,13 @@ def test_higher_event_allowance_does_not_raise_total_batch_limit(tmp_path):
     assert exc.value.code == "batch_limit"
 
 
-def test_qwen_adapter_rejects_unapproved_destination_before_using_credentials():
-    from service.providers.hetzner import QwenProvider
+def test_hetzner_adapter_rejects_unapproved_destination_before_using_credentials():
+    from service.providers.hetzner import HetznerProvider
 
     config = InferenceConfig(ROOT)
     config.endpoint = "https://unapproved.invalid/chat/completions"
-    with pytest.raises(ValueError, match="approved Hetzner endpoint"):
-        QwenProvider(None, config, "private-test-value")
+    with pytest.raises(ValueError, match="Unsupported Hetzner model or endpoint"):
+        HetznerProvider(None, config, "private-test-value")
 
 
 def test_admission_errors_explicitly_confirm_no_inference(tmp_path):

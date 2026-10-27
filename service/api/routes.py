@@ -199,3 +199,39 @@ async def summary_draft(request: SummaryRequest, http_request: Request):
     result, status = replay if replay is not None else await selected.suggest(request)
     headers = service.journal.retry_headers() if status == 429 else {}
     return JSONResponse(status_code=status, content=result, headers=headers)
+
+
+class SpendingEvidence(BaseModel):
+    """Operator evidence of actual USD charges, separate from recovery of an answer."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    amount_usd: str = Field(min_length=1, max_length=30)
+    operator: str = Field(min_length=1, max_length=160, pattern=r".*\S.*")
+    reason: str = Field(min_length=10, max_length=1000, pattern=r".*\S.*")
+    verified_account_evidence: StrictBool
+
+    @field_validator("operator", "reason", mode="before")
+    @classmethod
+    def trimmed(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+@router.get("/v1/attempts/{request_id}/spending", dependencies=auth)
+async def spending_evidence(request_id: str, service: Service):
+    """Read the reservation and reconciliation; never contact the provider."""
+    from service.persistence.spending import inspect
+
+    with service.journal.connection() as db:
+        return inspect(db, request_id)
+
+
+@router.post("/v1/attempts/{request_id}/spending", dependencies=auth)
+async def reconcile_spending(request_id: str, body: SpendingEvidence, service: Service):
+    """Audit verified charges after local execution and unknown-answer recovery."""
+    from service.persistence.locking import activity_lock
+    from service.persistence.spending import settle
+
+    if not body.verified_account_evidence:
+        raise AdmissionError("invalid_request", 422)
+    with activity_lock(service.journal.path, exclusive=True), service.journal.connection() as db:
+        return settle(db, request_id, body.amount_usd, body.operator.strip(), body.reason.strip())

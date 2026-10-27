@@ -29,9 +29,18 @@
       "path": "experiments/qwen-daily-v7.json",
       "sha256": "769c5304e3f230178c751bb4aba60ae346bd6724a0472f13dcb55c59c19a3b47"
     },
-    "daily-summary-v1": {
+    "hetzner-daily-v1": {
       "path": "daily-summary-v1.json",
-      "sha256": "342f3f4008deb00ebca76750d10d5bb7467c435ecb8fb14e21f34930f5e539cd"
+      "sha256": "342f3f4008deb00ebca76750d10d5bb7467c435ecb8fb14e21f34930f5e539cd",
+      "requires_fingerprint": true,
+      "provider_profile": "hetzner"
+    },
+    "gemini-daily-v1": {
+      "path": "daily-summary-v1.json",
+      "sha256": "342f3f4008deb00ebca76750d10d5bb7467c435ecb8fb14e21f34930f5e539cd",
+      "provider_profile": "gemini",
+      "provider_sha256": "8395dd09bcc163f8ca8ad917bb64a4d49699e02f27dd87e14f87f982495c4673",
+      "requires_fingerprint": true
     }
   }
 }

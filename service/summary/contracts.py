@@ -95,7 +95,7 @@ class SummaryRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     request_id: Identifier
     job_id: Identifier
-    model_id: Identifier = "daily-summary-v1"
+    model_id: Identifier = "hetzner-daily-v1"
     config_sha256: Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")] | None = None
     snapshot_sha256: Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")]
     snapshot: DailySnapshot

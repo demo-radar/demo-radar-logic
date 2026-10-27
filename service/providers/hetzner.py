@@ -1,8 +1,8 @@
-"""Hetzner Qwen adapter: one HTTP call, bounded response and tag validation.
+"""Hetzner adapter: one HTTP call, bounded response and tag validation.
 
 The model and prompt come from the evaluated configuration. This module owns
 Hetzner's URL, HTTP error interpretation and response format. Helpers stay pure;
-the QwenProvider object owns the client and credential for the application life.
+the HetznerProvider object owns the client and credential for the application life.
 """
 
 import json
@@ -12,6 +12,7 @@ from email.utils import parsedate_to_datetime
 
 from service.inference.validation import validate_tags
 from service.providers.base import ProviderFailure, ProviderResult, response_metadata
+from service.providers.models import MODEL_CATALOG
 
 
 def strict_json(value):
@@ -82,8 +83,8 @@ def parse_response(body):
     return tags
 
 
-class QwenProvider:
-    """Hetzner adapter for the evaluated Qwen configuration.
+class HetznerProvider:
+    """Transport for approved models hosted by Hetzner.
 
     Args:
         client: Lifecycle-owned HTTPX client; this adapter does not close it.
@@ -100,12 +101,18 @@ class QwenProvider:
             ValueError: The configuration does not belong to this adapter.
         The endpoint is owned by this class; callers cannot redirect a request.
         """
-        if config.provider != "hetzner" or config.endpoint != self.ENDPOINT:
-            raise ValueError("QwenProvider requires the approved Hetzner endpoint")
+        model = MODEL_CATALOG.get(config.model)
+        if (
+            model is None
+            or model.provider != "hetzner"
+            or config.provider != "hetzner"
+            or config.endpoint != self.ENDPOINT
+        ):
+            raise ValueError("Unsupported Hetzner model or endpoint")
         self.client, self.key = client, key
 
     async def predict(self, payload: dict) -> ProviderResult:
-        """Return validated tags and usage from exactly one bounded Qwen call."""
+        """Return validated tags and usage from exactly one bounded provider call."""
         tags, body = await self._request(payload)
         return ProviderResult(tags, response_metadata(body))
 

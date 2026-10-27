@@ -108,15 +108,32 @@ class InferenceService:
         inference. SQLite still decides admission and all attempt limits.
         """
         from service.persistence.locking import activity_lock
+        from service.persistence.spending import policy
 
         lock = activity_lock(self.journal.path)
         lock.__enter__()
         try:
+            payload = self.config.payload(
+                request.event.title if self.task == "tagging" else request.snapshot
+            )
+            approved = policy(self.settings, self.config)
+            if approved is not None:
+                try:
+                    count = await asyncio.wait_for(self.provider.count_tokens(payload), timeout=5)
+                except (ProviderFailure, TimeoutError) as exc:
+                    raise AdmissionError("token_count_unavailable", 503) from exc
+                approved = policy(
+                    self.settings,
+                    self.config,
+                    input_tokens=count,
+                    output_tokens=payload["max_completion_tokens"],
+                )
             saved = self.journal.begin(
                 request,
                 identity,
                 event_key,
                 self.settings.min_interval_seconds,
+                spending=approved,
                 execution={
                     **describe_profile(self.task, self.config),
                     "mode": self.settings.mode,
@@ -126,11 +143,7 @@ class InferenceService:
                     "job_id": request.job_id,
                     "source_sha256": source_identity(request, self.task),
                     "attempt_limit": self.journal.max_attempts,
-                    "payload_sha256": fingerprint(
-                        self.config.payload(
-                            request.event.title if self.task == "tagging" else request.snapshot
-                        )
-                    ),
+                    "payload_sha256": fingerprint(payload),
                     "timeout_seconds": self.settings.timeout_seconds
                     if self.task == "tagging"
                     else self.settings.summary_timeout_seconds,

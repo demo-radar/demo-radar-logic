@@ -59,7 +59,7 @@ class Journal:
         with self.connection() as db:
             db.execute("BEGIN IMMEDIATE")
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1, 2):
+            if version not in (0, 1, 2, 3):
                 raise ValueError("Unsupported journal schema version")
             db.execute("""CREATE TABLE IF NOT EXISTS control (
                 id INTEGER PRIMARY KEY CHECK(id = 1),
@@ -116,7 +116,10 @@ class Journal:
                 BEFORE UPDATE OF snapshot, allowance_key ON attempt_execution
                 BEGIN SELECT RAISE(ABORT, 'Execution snapshot is immutable'); END""")
             self._backfill_execution(db)
-            db.execute("PRAGMA user_version = 2")
+            from service.persistence.spending import initialize
+
+            initialize(db)
+            db.execute("PRAGMA user_version = 3")
 
     @staticmethod
     def _backfill_execution(db):
@@ -187,6 +190,7 @@ class Journal:
         max_attempts=None,
         execution=None,
         allowance_key=None,
+        spending=None,
     ):
         """Atomically replay or reserve one attempt, enforcing persisted caps.
 
@@ -316,6 +320,16 @@ class Journal:
                     "INSERT INTO attempt_execution(request_id, allowance_key, snapshot) VALUES(?,?,?)",
                     (request.request_id, allowance_key, json.dumps(execution, allow_nan=False)),
                 )
+            from service.persistence.spending import reserve
+
+            reserve(
+                db,
+                request,
+                spending,
+                summary_allowance=(
+                    allowance_key if execution and execution["task"] == "daily-summary" else None
+                ),
+            )
             db.execute("UPDATE control SET next_allowed=? WHERE id=1", (now + interval,))
         return None
 
@@ -347,6 +361,9 @@ class Journal:
             )
             if changed.rowcount != 1:
                 raise AdmissionError("attempt_already_finalized")
+            from service.persistence.spending import reconcile
+
+            reconcile(db, request_id, body, state)
             db.execute(
                 "UPDATE control SET next_allowed=MAX(next_allowed, ?) WHERE id=1",
                 (time.time() + retry_after,),

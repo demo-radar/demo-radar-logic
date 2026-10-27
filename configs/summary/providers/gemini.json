@@ -1,0 +1,68 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.8-flash",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+  "settings": {
+    "model": "gemini-3.8-flash",
+    "temperature": 0,
+    "max_completion_tokens": 2048,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "daily_summary_draft",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "overview": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 400
+                  },
+                  "event_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "text",
+                  "event_ids"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              }
+            }
+          },
+          "required": [
+            "overview",
+            "limitations"
+          ],
+          "additionalProperties": false
+        }
+      }
+    }
+  },
+  "returned_model_ids": [
+    "gemini-3.8-flash"
+  ]
+}

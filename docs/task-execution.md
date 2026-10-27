@@ -5,7 +5,8 @@ model, instructions and output format. Its ID and hash identify the exact versio
 
 Demo Radar chooses jobs and handles permissions, review and publication. DemoLogic
 checks profiles, calls the provider and saves results. Route execution remains
-disabled. Provider settings, Gemini and paid spending controls come later.
+disabled. Radar stores independent tagging and summary defaults with an audit trail.
+See [provider setup and spending](provider-settings.md) for activation requirements.
 
 ## The flow
 
@@ -14,7 +15,7 @@ flowchart LR
     Radar[Radar sends a job] --> Saved{Answer already saved?}
     Saved -->|yes| Read[Return the original answer]
     Saved -->|no| Check[Check profile and shared limits]
-    Check --> Record[Save the attempt settings]
+    Check --> Record[Save attempt settings and reserve paid cost]
     Record --> Model[Call the provider once]
     Model --> Save[Validate and save the result]
     Read --> Review[Review in Radar]
@@ -36,7 +37,8 @@ authenticated profile catalog and attempt lookup endpoints. These inspection
 endpoints make no model calls or settings changes. The optional request fields
 are documented in the [tagging contract](service-api.md#tagging-contract).
 
-An `enabled` profile is loaded; it does not prove that a live call succeeded.
+An `enabled` profile has configured execution requirements; it does not prove
+that a live call succeeded or that spending allowance remains.
 Summary profiles appear only when summaries are enabled.
 
 ## Keep older profiles
@@ -47,7 +49,9 @@ assets and add its ID to the appropriate comma-separated startup setting:
 * `DEMOLOGIC_RETAINED_TAG_CONFIGS`
 * `DEMOLOGIC_RETAINED_SUMMARY_CONFIGS`
 
-Empty values add no extra profiles. Retention does not change Radar's defaults.
+Gemini profiles are included automatically; the summary profile requires summaries
+to be enabled. Empty retention settings add no other profiles. Retention does not
+change Radar's defaults.
 Summary retention requires summaries enabled. Unknown or altered assets stop startup.
 
 Removing a profile stops new work using it. Saved answers remain available through
@@ -61,7 +65,7 @@ Restore compatible versions for unfinished work instead of replacing its setting
 | Old Radar, new Logic | Existing requests remain compatible. |
 | New Radar, old Logic | A missing catalog (404/405) uses the existing pinned readiness check. Other catalog errors stop work. |
 | Both new | Radar checks the exact profile ID and hash, including retained profiles. |
-| Older Logic after rollback | Saved results remain readable; older code cannot enforce the new cross-profile rules. |
+| Older Logic after rollback | Older service versions cannot read the updated request database (schema 3). Restore a service version that supports it and keep the current database intact. |
 
 For an upgrade:
 
@@ -71,9 +75,10 @@ For an upgrade:
 4. Upgrade Logic and check catalog/readiness before resuming Radar.
 
 For rollback, pause and drain again, preserve the current journal, and restore
-compatible images/assets. Keep new-profile and multi-profile work disabled with
-an older controller. Never delete the journal, switch profiles to clear an unknown
-outcome, or overwrite newer attempts with an old backup.
+a compatible service image with its approved profile files. Keep the current request
+database: it records saved answers, unresolved calls and money already reserved.
+Use a service version that understands those records. Do not delete the database,
+change providers to bypass an unresolved call, or restore an old backup over newer records.
 
 ## Saved history and timing
 

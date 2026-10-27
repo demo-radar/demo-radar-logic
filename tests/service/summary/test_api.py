@@ -17,7 +17,7 @@ from service.persistence.journal import AdmissionError
 from service.providers.base import ProviderFailure
 from service.summary.config import SummaryConfig
 from service.summary.contracts import SummaryRequest
-from service.summary.provider import HetznerSummaryProvider
+from service.summary.provider import SummaryParser
 
 AUTH = {"Authorization": "Bearer test-token"}
 
@@ -48,7 +48,7 @@ def request():
     return {
         "request_id": "daily-one",
         "job_id": "daily-job",
-        "model_id": "daily-summary-v1",
+        "model_id": "hetzner-daily-v1",
         "config_sha256": SummaryConfig(Path(__file__).resolve().parents[3]).sha256,
         "snapshot_sha256": fingerprint(snapshot),
         "snapshot": snapshot,
@@ -400,7 +400,7 @@ def test_service_owns_contract_and_english_example(tmp_path):
     with TestClient(app(tmp_path)) as client:
         assert client.get("/v1/daily-summary-contract").status_code == 401
         contract = client.get("/v1/daily-summary-contract", headers=AUTH).json()
-        assert contract["config_id"] == "daily-summary-v1"
+        assert contract["config_id"] == "hetzner-daily-v1"
         assert contract["languages"] == ["de", "en"]
         payload = request()
         payload["snapshot"]["language"] = "en"
@@ -500,7 +500,7 @@ def test_contract_describes_model_independent_briefing(tmp_path):
         assert contract["prompt_revision"] == 20
         assert contract["maximum_claim_length"] == 1000
         assert contract["maximum_claim_sources"] == 20
-        assert contract["config_id"] == "daily-summary-v1"
+        assert contract["config_id"] == "hetzner-daily-v1"
 
 
 @pytest.mark.parametrize(
@@ -561,7 +561,7 @@ def test_legacy_assignment_parser_rejects_invalid_topic_numbers(assignments):
         "limitations": [],
     }
     with pytest.raises(ProviderFailure):
-        HetznerSummaryProvider.normalize_assignments(body, payload, {})
+        SummaryParser.normalize_assignments(body, payload, {})
 
 
 def test_unassigned_prose_is_omitted_without_changing_event_assignments(tmp_path):

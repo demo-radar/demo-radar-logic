@@ -53,7 +53,9 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `GET /health/live` | Process liveness; no provider request |
 | `GET /health/ready` | Authenticated admission/readiness state |
 | `GET /v1/openapi.json` | Implemented request and response schemas |
-| `GET /v1/task-profiles` | Read-only supported task/profile catalog |
+| `GET /v1/task-profiles` | Read-only supported task/profile catalog and client contracts |
+| `GET /v1/attempts/{id}/spending` | Private reservation and charge evidence |
+| `POST /v1/attempts/{id}/spending` | Audited operator reconciliation after verified account evidence |
 | `GET /v1/attempts/{request_id}/execution` | Private saved configuration and measured phase facts |
 | `POST /v1/tag-suggestions` | One event’s topic suggestions |
 | `GET /v1/daily-summary-contract` | Summary configuration, model metadata and fingerprint |
@@ -129,11 +131,10 @@ thinking disabled, search off, JSON output and a 4,096-token cap. Learned model
 knowledge is permitted. Only the title and instructions are model context;
 review notes, earlier events and historical reference labels are not appended.
 
-Live mode requires private provider settings and explicit free-tier confirmation.
-That operator assertion is not a billing guarantee. No paid fallback or production
-Gemini adapter is enabled. New providers require their own payload, identity,
-usage, error and recovery checks; a model-independent product contract does not
-make every provider interchangeable.
+Hetzner live mode requires private settings and explicit free-tier confirmation.
+Gemini has separately approved profiles and is disabled until operator activation.
+See [provider settings and spending](provider-settings.md) for the monetary guard,
+pricing revision, keys and release checklist. There is no automatic fallback.
 
 The service admits one provider attempt at a time across processes sharing the
 same journal. Tagging has hard batch ceilings of 40 distinct event IDs and 120
@@ -191,7 +192,7 @@ do not delete history to make readiness green.
 
 ## Daily drafts
 
-`daily-summary-v1` names the product contract. Fetch its authenticated metadata
+`hetzner-daily-v1` names the product contract. Fetch its authenticated metadata
 and send `config_sha256` with a canonical snapshot and its hash. Snapshot fields
 include the Berlin date, public titles, recorded times/locations/routes, approved
 public tags and explicit uncertainty. Private notes and arbitrary settings are

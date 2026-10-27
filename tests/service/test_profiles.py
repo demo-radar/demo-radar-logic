@@ -114,7 +114,7 @@ def test_restart_retains_pinned_profile_and_retired_results_still_replay(tmp_pat
     newer = replace(runtime, config_id=ALTERNATE, retained_tag_configs=("qwen-v4-v1",))
     with TestClient(create_app(newer)) as client:
         profiles = client.get("/v1/task-profiles", headers=AUTH).json()["profiles"]
-        assert {p["profile_id"] for p in profiles} == {"qwen-v4-v1", ALTERNATE}
+        assert {p["profile_id"] for p in profiles} == {"qwen-v4-v1", ALTERNATE, "gemini-v4-v1"}
         second = request(2)
         assert client.post("/v1/tag-suggestions", json=second, headers=AUTH).status_code == 200
     with TestClient(create_app(replace(newer, retained_tag_configs=()))) as client:
@@ -156,7 +156,7 @@ def test_legacy_identity_and_old_journal_remain_compatible(tmp_path):
         assert replay["replayed"]
     # Legacy SQL still sees the original nine columns and version after migration.
     with sqlite3.connect(runtime.database) as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert db.execute("PRAGMA user_version").fetchone()[0] == 3
         assert len(db.execute("SELECT * FROM attempts").description) == 9
         assert (
             json.loads(db.execute("SELECT result FROM attempts").fetchone()[0])["statistics"]
@@ -288,3 +288,14 @@ def test_retained_summary_configuration_executes_and_retired_one_only_replays(tm
         assert replay["replayed"] and replay["statistics"] == first["statistics"]
         data["request_id"] = "fresh-retired-request"
         assert client.post("/v1/daily-summary-drafts", json=data, headers=AUTH).status_code == 422
+
+
+def test_renamed_summary_profile_preserves_the_legacy_contract_identity():
+    from service.summary.config import SummaryConfig
+
+    current = SummaryConfig(ROOT, "hetzner-daily-v1")
+    legacy = SummaryConfig(ROOT, "daily-summary-v1")
+    assert current.version == "hetzner-daily-v1"
+    assert legacy.version == "daily-summary-v1"
+    assert current.sha256 == legacy.sha256
+    assert current.data == legacy.data

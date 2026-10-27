@@ -7,7 +7,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from service.providers.hetzner import QwenProvider
+from service.providers.gemini import GeminiProvider
+from service.providers.hetzner import HetznerProvider
 
 
 @dataclass(frozen=True)
@@ -15,8 +16,8 @@ class Settings:
     """Runtime controls, supplied by Compose or the process environment.
 
     Demo mode returns synthetic responses without network access. Live mode
-    requires explicit confirmation of the free Hetzner account. Paid candidates
-    need the later shared spending guard and are not enabled by this prototype.
+    requires a confirmed free Hetzner account or explicitly enabled Gemini.
+    Gemini dispatch also requires configured monetary limits and an account.
     The SQLite path must be persistent and shared by all local service processes.
 
     Inputs are environment variables from service/.env (loaded by Compose), or
@@ -34,13 +35,19 @@ class Settings:
     timeout_seconds: float = 60
     min_interval_seconds: float = 1
     max_attempts_per_event: int = 3
-    summary_config_id: str = "daily-summary-v1"
+    summary_config_id: str = "hetzner-daily-v1"
     summary_enabled: bool = False
     summary_max_attempts: int = 3
     summary_timeout_seconds: float = 60
     config_id: str = "qwen-v4-v1"
     retained_tag_configs: tuple[str, ...] = ()
     retained_summary_configs: tuple[str, ...] = ()
+    gemini_key: str = field(default="", repr=False)
+    gemini_enabled: bool = False
+    paid_account: str = ""
+    paid_run_usd: str = ""
+    paid_period_usd: str = ""
+    paid_account_usd: str = ""
     environment: str = "unspecified"
     root: Path = Path(__file__).resolve().parents[1]
 
@@ -63,8 +70,15 @@ class Settings:
             raise ValueError("Summary timeout must be 1–60 seconds")
         if self.environment not in {"unspecified", "local", "staging", "production", "test"}:
             raise ValueError("Unsupported service environment")
-        if self.mode == "live" and (not self.provider_key or not self.free_tier_confirmed):
-            raise ValueError("Live mode requires a Hetzner key and confirmed free-tier account")
+        if (
+            self.mode == "live"
+            and not self.gemini_enabled
+            and (not self.provider_key or not self.free_tier_confirmed)
+        ):
+            raise ValueError(
+                "Live mode requires a confirmed free-provider account "
+                "or an explicitly enabled paid provider"
+            )
 
     @classmethod
     def from_env(cls):
@@ -78,7 +92,7 @@ class Settings:
             timeout_seconds=float(os.environ.get("DEMOLOGIC_TIMEOUT_SECONDS", "60")),
             min_interval_seconds=float(os.environ.get("DEMOLOGIC_MIN_INTERVAL_SECONDS", "1")),
             max_attempts_per_event=int(os.environ.get("DEMOLOGIC_MAX_ATTEMPTS_PER_EVENT", "3")),
-            summary_config_id=os.environ.get("DEMOLOGIC_SUMMARY_CONFIG_ID", "daily-summary-v1"),
+            summary_config_id=os.environ.get("DEMOLOGIC_SUMMARY_CONFIG_ID", "hetzner-daily-v1"),
             summary_enabled=os.environ.get("DEMOLOGIC_SUMMARY_ENABLED") == "true",
             summary_max_attempts=int(os.environ.get("DEMOLOGIC_SUMMARY_MAX_ATTEMPTS", "3")),
             summary_timeout_seconds=float(
@@ -92,6 +106,12 @@ class Settings:
                 filter(None, os.environ.get("DEMOLOGIC_RETAINED_SUMMARY_CONFIGS", "").split(","))
             ),
             environment=os.environ.get("DEMOLOGIC_ENVIRONMENT", "unspecified"),
+            gemini_key=os.environ.get("GEMINI_API_KEY", ""),
+            gemini_enabled=os.environ.get("DEMOLOGIC_GEMINI_ENABLED") == "true",
+            paid_account=os.environ.get("DEMOLOGIC_GEMINI_ACCOUNT", ""),
+            paid_run_usd=os.environ.get("DEMOLOGIC_PAID_RUN_USD", ""),
+            paid_period_usd=os.environ.get("DEMOLOGIC_PAID_PERIOD_USD", ""),
+            paid_account_usd=os.environ.get("DEMOLOGIC_PAID_ACCOUNT_USD", ""),
         )
 
 
@@ -146,9 +166,13 @@ class InferenceConfig:
             or self.data["candidate"]["settings"]["model"] != self.model
             or self.data["maximum_predicted_tags"] != 2
         ):
-            raise ValueError("Configuration differs from the supported qwen-v4-v1 contract")
-        if self.provider != "hetzner" or self.endpoint != QwenProvider.ENDPOINT:
-            raise ValueError("Only the approved Hetzner endpoint is supported")
+            raise ValueError("Configuration does not match its registered tagging profile")
+        endpoints = {
+            "hetzner": HetznerProvider.ENDPOINT,
+            "gemini": GeminiProvider.endpoint_for(self.model),
+        }
+        if self.endpoint != endpoints.get(self.provider):
+            raise ValueError("Only approved provider endpoints are supported")
 
     def payload(self, title: str) -> dict:
         """Build one independent provider payload using the unchanged template.

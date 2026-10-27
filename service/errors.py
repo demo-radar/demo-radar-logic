@@ -14,6 +14,12 @@ from http import HTTPStatus
 from service.contracts import ErrorDetail
 
 MESSAGES = {
+    "token_count_unavailable": "Provider input size could not be checked. No generation was admitted; try again later.",
+    "spending_review_required": "Reported usage exceeded its reservation. An operator must reconcile spending before more paid work.",
+    "provider_disabled": "This provider is disabled. An operator must approve activation.",
+    "spending_not_configured": "Paid execution requires approved run, daily and account limits.",
+    "pricing_review_required": "The provider pricing needs an operator review before another call.",
+    "spending_limit": "The shared spending allowance cannot cover another call. No inference was admitted.",
     "job_configuration_mismatch": "This job already uses a different execution profile. Keep its original settings.",
     "unsupported_task_profile": "This task/profile combination is unavailable. Keep the saved job and check compatible service versions.",
     "recovery_inflight": "A local inference call is still running. Wait for it to finish before recovery.",

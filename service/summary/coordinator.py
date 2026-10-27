@@ -37,7 +37,7 @@ class SummaryService(InferenceService):
         self.validate_profile(request)
         if (
             request.model_id != self.config.version
-            or request.model_id == "daily-summary-v1"
+            or self.config.requires_fingerprint
             and request.config_sha256 != self.config.sha256
         ):
             raise AdmissionError("unsupported_configuration", 422)

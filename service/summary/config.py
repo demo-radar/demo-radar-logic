@@ -6,22 +6,26 @@ import json
 
 from service.inference.results import fingerprint
 from service.persistence.journal import AdmissionError
-from service.providers.hetzner import QwenProvider
+from service.providers.gemini import GeminiProvider
+from service.providers.hetzner import HetznerProvider
+
+# Older saved jobs keep their original ID and fingerprint.
+LEGACY_CONFIG_IDS = {"daily-summary-v1": "hetzner-daily-v1"}
 
 
 class SummaryConfig:
     """Read one pinned public config and build bounded, search-free requests.
 
-    The full UTF-8 payload is capped at 64,000 bytes. This is also a conservative
-    input-token reservation; completion is capped by the pinned configuration, including
-    any reasoning. No truncation is
-    performed. A larger snapshot must be handled in a separately reviewed plan.
+    The full UTF-8 payload is capped at 64,000 bytes without truncation.
+    Paid requests count input tokens before reserving their maximum cost;
+    the pinned output limit includes reasoning tokens.
     """
 
-    def __init__(self, root, config_id="daily-summary-v1", provider_profile="hetzner"):
+    def __init__(self, root, config_id="hetzner-daily-v1"):
         directory = root / "configs/summary"
         catalog = json.loads((directory / "catalog.json").read_text())
-        registration = catalog["configurations"][config_id]
+        registration = catalog["configurations"][LEGACY_CONFIG_IDS.get(config_id, config_id)]
+        self.requires_fingerprint = registration.get("requires_fingerprint", False)
         path = (directory / registration["path"]).resolve()
         if not path.is_relative_to(directory.resolve()):
             raise ValueError("Summary config must stay inside its catalog")
@@ -34,10 +38,16 @@ class SummaryConfig:
         if isinstance(self.data["system"], list):
             self.data["system"] = " ".join(self.data["system"])
         self.example = None
-        if config_id == "daily-summary-v1":
-            if provider_profile != "hetzner":
+        provider_profile = registration.get("provider_profile")
+        if provider_profile is not None:
+            if provider_profile not in {"hetzner", "gemini"}:
                 raise ValueError("No adapter is installed for this summary provider")
             profile = (directory / "providers" / (provider_profile + ".json")).read_bytes()
+            if (
+                registration.get("provider_sha256", hashlib.sha256(profile).hexdigest())
+                != hashlib.sha256(profile).hexdigest()
+            ):
+                raise ValueError("Summary provider profile changed")
             example = (directory / self.data["example"]["path"]).read_bytes()
             if hashlib.sha256(example).hexdigest() != self.data["example"]["sha256"]:
                 raise ValueError("Summary example changed; version the example")
@@ -59,7 +69,7 @@ class SummaryConfig:
             .get("event_ids", {})
             .get("maxItems", self.data["maximum_events"])
         )
-        self.version = self.data["version"]
+        self.version = config_id if provider_profile is not None else self.data["version"]
         self.provider = self.data["provider"]
         self.model = self.data["model"]
         self.endpoint = self.data["endpoint"]
@@ -76,8 +86,11 @@ class SummaryConfig:
         if (
             catalog["schema_version"] != 1
             or self.version != config_id
-            or self.provider != "hetzner"
-            or self.endpoint != QwenProvider.ENDPOINT
+            or self.endpoint
+            != {
+                "hetzner": HetznerProvider.ENDPOINT,
+                "gemini": GeminiProvider.endpoint_for(self.model),
+            }.get(self.provider)
             or self.data["settings"]["model"] != self.model
         ):
             raise ValueError("Unsupported daily summary configuration")

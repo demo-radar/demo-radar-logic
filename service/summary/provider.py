@@ -1,34 +1,31 @@
-"""Summary adapters reuse Hetzner transport but never apply the tag parser."""
+"""Provider-independent summary parsing and transport composition."""
 
 import logging
 
 from pydantic import ValidationError
 
 from service.providers.base import ProviderFailure, response_metadata
-from service.providers.hetzner import QwenProvider, strict_json
+from service.providers.hetzner import strict_json
 from service.summary.contracts import SummaryDraft
 
 logger = logging.getLogger(__name__)
 
 
-class HetznerSummaryProvider(QwenProvider):
-    """One Qwen completion returning a draft and original usage metadata."""
+class SummaryParser:
+    """Apply the pinned summary schema independently of provider transport."""
 
-    def __init__(self, client, config, key):
-        super().__init__(client, config, key)
+    def __init__(self, config):
         self.assignment_style = config.data.get("assignment_style")
         self.omit_unassigned = config.data.get("unused_topic_policy") == "omit-unassigned-v1"
         self.draft_schema_version = config.data.get("draft_schema_version", 1)
         self.returned_models = config.data.get("returned_model_ids", [config.model])
 
-    async def draft(self, payload):
-        """Reject malformed/truncated output; never convert failures to empty prose."""
-        body = await self.response_body(payload)
+    def parse_draft(self, body, payload):
+        """Apply the same output checks to every approved summary provider."""
         metadata = response_metadata(body)
         try:
-            choice = body["choices"][0]
-            reason = choice["finish_reason"]
-            content = choice["message"]["content"]
+            reason = body["choices"][0]["finish_reason"]
+            content = body["choices"][0]["message"]["content"]
         except (TypeError, KeyError, IndexError) as exc:
             raise ProviderFailure("invalid_summary_envelope", metadata=metadata) from exc
         if reason != "stop":
@@ -126,6 +123,22 @@ class HetznerSummaryProvider(QwenProvider):
             for number in numbers:
                 result["topics"][number - 1]["event_ids"].append(identifier)
         return result
+
+
+class SummaryProvider:
+    """Combine the selected vendor transport with the shared summary parser."""
+
+    def __init__(self, transport, config):
+        self.transport = transport
+        self.parser = SummaryParser(config)
+
+    async def count_tokens(self, payload):
+        """Use the selected transport's token count before paid admission."""
+        return await self.transport.count_tokens(payload)
+
+    async def draft(self, payload):
+        body = await self.transport.response_body(payload)
+        return self.parser.parse_draft(body, payload)
 
 
 class SyntheticSummaryProvider:

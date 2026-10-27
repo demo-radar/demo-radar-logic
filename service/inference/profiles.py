@@ -24,7 +24,21 @@ def describe_profile(task, config, enabled=True):
         example = config.data.get("example", {}).get("sha256")
         schema = config.data["settings"].get("response_format", {})
         output_tokens = config.data["settings"]["max_completion_tokens"]
+    contract = (
+        config.contract()
+        if task == "daily-summary"
+        else {
+            "config_id": config.version,
+            "config_sha256": config.sha256,
+            "rubric_sha256": config.rubric_sha256,
+            "taxonomy_version": "v2",
+            "provider": config.provider,
+            "requested_model": config.model,
+            "maximum_tags": 2,
+        }
+    )
     return {
+        "contract": contract,
         "task": task,
         "profile_id": config.version,
         "profile_sha256": config.sha256,
@@ -63,10 +77,24 @@ class TaskProfiles:
             raise AdmissionError("unsupported_configuration", 422)
         return service
 
+    @staticmethod
+    def describe(service):
+        from service.persistence.spending import policy
+
+        enabled, reason = True, None
+        try:
+            policy(service.settings, service.config)
+        except AdmissionError as exc:
+            enabled, reason = False, exc.code
+        descriptor = describe_profile(service.task, service.config, enabled)
+        if service.task == "daily-summary":
+            descriptor["contract"]["max_attempts"] = service.settings.summary_max_attempts
+        return {**descriptor, "unavailable_reason": reason}
+
     def catalog(self):
         return {
             "schema_version": 1,
-            "profiles": [describe_profile(s.task, s.config) for s in self.services.values()],
+            "profiles": [self.describe(s) for s in self.services.values()],
             "unavailable_tasks": [
                 task
                 for task in ("tagging", "daily-summary", "routes")

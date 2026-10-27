@@ -44,7 +44,7 @@ ReviewRequired = Annotated[Literal[True], BeforeValidator(require_review)]
 
 def aware_timestamp(value: str) -> datetime:
     """Parse an offset timestamp without rewriting its saved representation."""
-    result = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    result = datetime.fromisoformat(value)
     if result.utcoffset() is None:
         raise ValueError("Attempt timestamps need a UTC offset")
     return result

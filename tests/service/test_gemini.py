@@ -13,7 +13,7 @@ from service.config import InferenceConfig
 from service.persistence import spending
 from service.persistence.journal import AdmissionError, Journal
 from service.providers.gemini import GeminiProvider
-from service.providers.models import MODEL_CATALOG, ModelId, ModelDefinition
+from service.providers.models import MODEL_CATALOG, ModelDefinition, ModelId
 from tests.service.summary.test_api import request as summary_request
 from tests.service.test_api import AUTH, request, settings
 
@@ -93,7 +93,11 @@ def test_profiles_are_independent_and_disabled_without_operator_approval(tmp_pat
         calls.append(req)
         return httpx.Response(200, json=answer(["mobility"]))
 
-    with TestClient(create_app(replace(runtime(tmp_path), gemini_enabled=False), transport=gemini_transport(response))) as client:
+    with TestClient(
+        create_app(
+            replace(runtime(tmp_path), gemini_enabled=False), transport=gemini_transport(response)
+        )
+    ) as client:
         profiles = client.get("/v1/task-profiles", headers=AUTH).json()["profiles"]
         assert {(p["task"], p["provider"]) for p in profiles} == {
             ("tagging", "hetzner"),
@@ -715,7 +719,9 @@ def test_second_registered_gemini_uses_its_own_model_endpoint_and_pricing(tmp_pa
         "input_microusd_per_token": "1.00",
     }
     monkeypatch.setitem(MODEL_CATALOG, name, ModelDefinition(provider="gemini", pricing=pricing))
-    config = SimpleNamespace(provider="gemini", model=name, endpoint=GeminiProvider.endpoint_for(name))
+    config = SimpleNamespace(
+        provider="gemini", model=name, endpoint=GeminiProvider.endpoint_for(name)
+    )
     adapter = GeminiProvider(None, config, "synthetic-secret")
     approved = spending.policy(runtime(tmp_path), config, input_tokens=10, output_tokens=4096)
     assert adapter.model == name

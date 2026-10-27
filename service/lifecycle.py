@@ -65,8 +65,10 @@ async def _locked_service_lifespan(app, *, runtime, transport):
         if runtime.summary_enabled:
             versions = dict.fromkeys(
                 (
-                    runtime.summary_config_id, *runtime.retained_summary_configs,
-                    "hetzner-daily-v1", "gemini-daily-v1",
+                    runtime.summary_config_id,
+                    *runtime.retained_summary_configs,
+                    "hetzner-daily-v1",
+                    "gemini-daily-v1",
                 )
             )
             for version in versions:

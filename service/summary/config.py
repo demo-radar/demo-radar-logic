@@ -9,7 +9,6 @@ from service.persistence.journal import AdmissionError
 from service.providers.gemini import GeminiProvider
 from service.providers.hetzner import HetznerProvider
 
-
 # Older saved jobs keep their original ID and fingerprint.
 LEGACY_CONFIG_IDS = {"daily-summary-v1": "hetzner-daily-v1"}
 

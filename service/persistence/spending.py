@@ -40,7 +40,11 @@ def policy(settings, config, *, input_tokens=None, output_tokens=None):
     if model is None or model.provider != config.provider:
         raise AdmissionError("pricing_review_required", 503)
     if model.requires_free_account:
-        if config.provider != "hetzner" or not settings.provider_key or not settings.free_tier_confirmed:
+        if (
+            config.provider != "hetzner"
+            or not settings.provider_key
+            or not settings.free_tier_confirmed
+        ):
             raise AdmissionError("provider_disabled", 503)
         return None
     if config.provider != "gemini" or not settings.gemini_enabled or not settings.gemini_key:
@@ -133,7 +137,8 @@ def reserve(db, request, approved, *, summary_allowance=None):
                 row
                 for row in rows
                 if row["job_id"] == request.job_id
-                or summary_allowance is not None and row["allowance_key"] == summary_allowance
+                or summary_allowance is not None
+                and row["allowance_key"] == summary_allowance
             ],
         ),
         (

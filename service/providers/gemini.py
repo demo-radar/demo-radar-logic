@@ -174,4 +174,3 @@ class GeminiProvider:
     async def predict(self, payload):
         body = await self.response_body(payload)
         return ProviderResult(parse_response(body), response_metadata(body))
-

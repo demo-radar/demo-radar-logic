@@ -14,6 +14,9 @@ from http import HTTPStatus
 from service.contracts import ErrorDetail
 
 MESSAGES = {
+    "gem_model_mismatch": "The provider returned a model outside the approved Gem configuration. No suggestion was accepted; its attempt and usage remain saved.",
+    "gem_input_too_large": "The full Gem context exceeds the input limit. No fields were dropped and no model call was admitted.",
+    "invalid_gem_response": "The model returned invalid Gem JSON. No suggestion was accepted; the attempt and usage were saved.",
     "token_count_unavailable": "Provider input size could not be checked. No generation was admitted; try again later.",
     "spending_review_required": "Reported usage exceeded its reservation. An operator must reconcile spending before more paid work.",
     "provider_disabled": "This provider is disabled. An operator must approve activation.",

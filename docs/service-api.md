@@ -54,6 +54,9 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `GET /health/ready` | Authenticated admission/readiness state |
 | `GET /v1/openapi.json` | Implemented request and response schemas |
 | `GET /v1/task-profiles` | Read-only supported task/profile catalog and client contracts |
+| `GET /v1/gem-profiles` | Available versioned Gem profiles; no inference |
+| `POST /v1/gems/tagging/preview` | Same system/context messages used for Copy Gem and execution; no reservation |
+| `POST /v1/gems/tagging` | Execute a pinned tagging Gem and save its JSON reply for review |
 | `GET /v1/attempts/{id}/spending` | Private reservation and charge evidence |
 | `POST /v1/attempts/{id}/spending` | Audited operator reconciliation after verified account evidence |
 | `GET /v1/attempts/{request_id}/execution` | Private saved configuration and measured phase facts |
@@ -83,7 +86,7 @@ retained profiles, saved execution records and upgrade/rollback procedure.
 }
 ```
 
-Both tagging and summary requests accept an optional `execution` object:
+Regular F0 tagging and summary requests accept an optional `execution` object:
 
 * `task`: `tagging` or `daily-summary`, matching the endpoint.
 * `profile_sha256`: the exact hash returned by the approved profile catalog.
@@ -121,6 +124,28 @@ or database text. Display them as escaped text in staff interfaces.
 
 `inference_admitted: false` explicitly identifies a confirmed refusal before
 inference. A missing response or bare HTTP status is not equivalent evidence.
+
+## Manual tagging Gem contract
+
+`POST /v1/gems/tagging` requires `input_variant: GEM-v1`, a Gem `model_id`,
+the full `context` and an `execution` object containing the exact Gem profile
+hash, `task: tagging` and `origin: manual_api`. Missing/mismatched fingerprints
+and scheduled origins are rejected before admission. Preview uses the base
+profile identity and returns the derived Gem profile and exact system/context
+messages without inference.
+
+Each authorized manual send uses a fresh job/request identity and can include
+current tags. The journal permits one provider attempt per Gem job, across
+restarts and request-ID changes. Repeating the original request retrieves its
+saved response; another deliberate send gets a fresh job. Prior successful or
+exhausted classification does not prohibit a fresh manual send. Spending caps,
+provider pacing, maintenance, the sequential lane and unknown-outcome recovery
+remain shared. An audited closure permits a new manual execution without
+clearing the old unknown usage reservation. Automatic retries are not permitted.
+
+The saved `gem_reply` contains `external_id`, `tags`, `confidence` and `reason`.
+It remains private and requires a separate Radar review/publication action.
+See [task execution](task-execution.md#run-a-gem-through-radar) for the workflow.
 
 ## Evaluated configuration and limits
 

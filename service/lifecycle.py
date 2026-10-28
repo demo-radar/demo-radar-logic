@@ -61,6 +61,18 @@ async def _locked_service_lifespan(app, *, runtime, transport):
                         runtime, retained, journal, create_provider(runtime, retained, client)
                     )
                 )
+        from service.gems.config import GemConfig
+        from service.gems.coordinator import GemService
+
+        app.state.gems = TaskProfiles()
+        app.state.gems_by_base = {}
+        for base in app.state.profiles.services.values():
+            gem_config = GemConfig(runtime.root, base.config)
+            service = GemService(
+                runtime, gem_config, journal, create_provider(runtime, gem_config, client)
+            )
+            app.state.gems.add(service)
+            app.state.gems_by_base[base.config.version] = service
         app.state.summary = None
         if runtime.summary_enabled:
             versions = dict.fromkeys(
@@ -85,5 +97,8 @@ async def _locked_service_lifespan(app, *, runtime, transport):
         try:
             yield
         finally:
-            for service in app.state.profiles.services.values():
+            for service in [
+                *app.state.profiles.services.values(),
+                *app.state.gems.services.values(),
+            ]:
                 await service.close()

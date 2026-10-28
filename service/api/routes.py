@@ -13,7 +13,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 
 from service.contracts import TagRequest, TagResponse
-from service.inference.contracts import ProfileCatalog
+from service.gems.contracts import GemPreview, GemRequest, GemResponse
+from service.inference.contracts import (
+    ProfileCatalog,
+)
 from service.inference.coordinator import InferenceService
 from service.inference.recovery import RecoveryService
 from service.persistence.journal import AdmissionError
@@ -246,3 +249,39 @@ async def reconcile_spending(request_id: str, body: SpendingEvidence, service: S
         raise AdmissionError("invalid_request", 422)
     with activity_lock(service.journal.path, exclusive=True), service.journal.connection() as db:
         return settle(db, request_id, body.amount_usd, body.operator.strip(), body.reason.strip())
+
+
+@router.get("/v1/gem-profiles", dependencies=auth, response_model=ProfileCatalog)
+async def gem_profiles(http_request: Request):
+    """Read executable Gem identities without inference."""
+    return http_request.app.state.gems.catalog()
+
+
+@router.post("/v1/gems/tagging/preview", dependencies=auth)
+async def gem_preview(body: GemPreview, http_request: Request):
+    """Return the same system/context messages for copying and API execution."""
+    base = http_request.app.state.profiles.services.get(("tagging", body.profile_id))
+    if base is None or base.config.sha256 != body.profile_sha256:
+        raise AdmissionError("unsupported_configuration", 422)
+    service = http_request.app.state.gems_by_base[base.config.version]
+    return {
+        "schema_version": 1,
+        "profile": http_request.app.state.gems.describe(service),
+        "gem_version": service.config.definition["version"],
+        "gem_sha256": service.config.gem_sha256,
+        "messages": service.config.payload(body.context)["messages"],
+    }
+
+
+@router.post("/v1/gems/tagging", dependencies=auth, response_model=GemResponse)
+async def run_tagging_gem(body: GemRequest, http_request: Request):
+    """Run one pinned Gem; saving the JSON does not publish tags."""
+    root = http_request.app.state.service
+    replay = root.replay(body)
+    selected = root if replay is not None else http_request.app.state.gems.resolve("tagging", body)
+    result, status = replay if replay is not None else await selected.suggest(body)
+    return JSONResponse(
+        content=result,
+        status_code=status,
+        headers=root.journal.retry_headers() if status == 429 else {},
+    )

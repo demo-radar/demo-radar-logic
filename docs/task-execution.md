@@ -24,7 +24,7 @@ flowchart LR
 
 Tags and summaries share one execution lane. Only one call runs at a time.
 Duplicate requests return the saved answer without another call. Jobs keep their
-original settings; changing profiles does not reset retry limits.
+original settings; changing profiles does not reset classifier or summary retry limits.
 
 **An unknown outcome blocks new calls, including after a restart or profile
 change.** Use the [recovery procedure](service-api.md#what-happens-if-the-connection-drops)
@@ -40,6 +40,39 @@ are documented in the [tagging contract](service-api.md#tagging-contract).
 An `enabled` profile has configured execution requirements; it does not prove
 that a live call succeeded or that spending allowance remains.
 Summary profiles appear only when summaries are enabled.
+
+## Run a Gem through Radar
+
+Radar offers **Copy Gem** and admin-only **Send to DemoLogic**. Both use the same
+versioned `configs/gems/tagging-v1.json` instructions and explicit demonstration
+context. Instructions become the system prompt; source facts become the user
+context. No saved chat history, attachments or hidden Gem configuration is inferred.
+
+`POST /v1/gems/tagging/preview` returns these messages and the pinned Gem profile
+without inference or a spending reservation. `GET /v1/gem-profiles` lists available
+Gem profiles. `POST /v1/gems/tagging` admits one request through the shared controller,
+spending guards and journal. Lookup/recovery use the existing attempt endpoints.
+
+A manual Gem send is a new explicit execution, including for an already-tagged
+or previously processed demo. Radar authorizes it and supplies a fresh `job_id`
+and `request_id`. That job admits at most **one** provider attempt: a duplicate
+request replays its saved outcome, and another request ID in the same job cannot
+retry generation. Previous classifier/Gem outcomes do not exhaust a new manual
+execution. There is no automatic Gem retry or batch cooldown; shared provider
+pacing, sequential admission, maintenance and spending ceilings still apply.
+The `execution` object is required, with `task: tagging`, `origin: manual_api`
+and the exact Gem `profile_sha256`; scheduled Gem calls are rejected.
+
+An unresolved Gem still blocks all new inference. After explicit audited closure,
+a new manual execution may revisit the demo; the old unknown answer and its
+reserved spending remain intact. Classifier and summary source retry limits are
+unchanged. Changing request/job IDs is never an automatic recovery mechanism.
+
+The saved `gem_reply` contains the event ID, tags, self-reported confidence and
+explanation. It is private and requires review. The Gem is separate from the
+research title-only tagging profile; that profile's prompt and output stay unchanged.
+Version the Gem definition when changing its instructions/schema, and keep Radar's
+pinned copy in sync. Mismatched fingerprints or messages block sending.
 
 ## Keep older profiles
 
@@ -72,7 +105,8 @@ For an upgrade:
 1. Pause new jobs, finish active calls and resolve unknown outcomes.
 2. Back up the private journal and required profile assets.
 3. Test with synthetic inputs and retain profiles needed by saved jobs.
-4. Upgrade Logic and check catalog/readiness before resuming Radar.
+4. Upgrade Logic and restart both the Radar API and its separate worker with
+   matching code; check catalog/readiness before resuming Radar.
 
 For rollback, pause and drain again, preserve the current journal, and restore
 a compatible service image with its approved profile files. Keep the current request

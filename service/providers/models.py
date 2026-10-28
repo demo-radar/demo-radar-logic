@@ -16,11 +16,16 @@ class ModelDefinition:
     provider: str
     pricing: dict | None = None
     requires_free_account: bool = False
+    returned_model_aliases: tuple[str, ...] = ()
 
 
 MODEL_CATALOG = {
     # Hetzner execution still requires the operator's free-account confirmation.
-    ModelId.QWEN: ModelDefinition(provider="hetzner", requires_free_account=True),
+    ModelId.QWEN: ModelDefinition(
+        provider="hetzner",
+        requires_free_account=True,
+        returned_model_aliases=("Qwen/Qwen3.6-35B-A3B",),
+    ),
     ModelId.GEMINI_FLASH: ModelDefinition(
         provider="gemini",
         pricing={

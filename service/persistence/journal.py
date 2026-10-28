@@ -188,6 +188,7 @@ class Journal:
         *,
         event_id=None,
         max_attempts=None,
+        max_job_attempts=120,
         execution=None,
         allowance_key=None,
         spending=None,
@@ -205,11 +206,15 @@ class Journal:
             interval: Minimum seconds before the next dispatch.
             event_id: Optional daily snapshot ID for summary work.
             max_attempts: Optional tighter server-side cap; never raises the limit.
+            max_job_attempts: Server-side job cap, one for an explicit Gem execution.
+                Enforced across all request IDs, events and historical scope formats.
         Returns:
             Saved (response, HTTP status) for a replay, or None after reservation.
         Raises:
             AdmissionError: Busy, conflicting, paused or exhausted work; no call.
         """
+        if type(max_job_attempts) is not int or not 1 <= max_job_attempts <= 120:
+            raise ValueError("Job attempts must be 1–120")
         event_id = event_id if event_id is not None else request.event.id
         attempt_limit = (
             self.max_attempts if max_attempts is None else min(self.max_attempts, max_attempts)
@@ -272,11 +277,19 @@ class Journal:
                 (request.job_id,),
             ).fetchall()
             for saved in saved_limits:
-                limit = json.loads(saved["snapshot"]).get("attempt_limit")
+                snapshot = json.loads(saved["snapshot"])
+                limit = snapshot.get("attempt_limit")
                 if type(limit) is int:
                     attempt_limit = min(attempt_limit, limit)
+                job_limit = snapshot.get("batch_attempt_limit")
+                if type(job_limit) is int:
+                    max_job_attempts = min(max_job_attempts, job_limit)
             if execution is not None:
-                execution = {**execution, "attempt_limit": attempt_limit}
+                execution = {
+                    **execution,
+                    "attempt_limit": attempt_limit,
+                    "batch_attempt_limit": max_job_attempts,
+                }
             if used >= attempt_limit:
                 raise AdmissionError("event_attempt_limit", 429)
             if execution is not None:
@@ -299,7 +312,7 @@ class Journal:
             batch = db.execute(
                 "SELECT event_id FROM attempts WHERE job_id=?", (request.job_id,)
             ).fetchall()
-            if len(batch) >= 120 or (
+            if len(batch) >= max_job_attempts or (
                 event_id not in {row["event_id"] for row in batch}
                 and len({row["event_id"] for row in batch}) >= 40
             ):

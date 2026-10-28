@@ -19,6 +19,7 @@ def describe_profile(task, config, enabled=True):
             "maximum_tags": config.data["maximum_predicted_tags"],
             "allowed_tags": sorted(topic_tags("v2")),
         }
+        schema = config.data.get("output_schema", schema)
         output_tokens = config.data["candidate"]["settings"]["max_completion_tokens"]
     else:
         instructions = fingerprint(config.data["system"])

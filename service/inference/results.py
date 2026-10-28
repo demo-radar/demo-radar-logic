@@ -74,11 +74,14 @@ class AttemptOutcome:
     retry_after: float = 0
 
 
-def build_result(request, config, runtime, outcome, started, wall_start, attempt_number):
+def build_result(
+    request, config, runtime, outcome, started, wall_start, attempt_number, *, payload=None
+):
     """Construct and validate the saved API response for one admitted attempt.
 
     Args:
-        request: Validated TagRequest; identifiers are not sent to the provider.
+        request: Validated task request. F0 excludes identifiers from model input;
+            Gem requests include their explicit demonstration context.
         config: Loaded, fingerprinted inference configuration.
         runtime: Service settings (including demo/live mode).
         outcome: AttemptOutcome returned by the coordinator.
@@ -92,7 +95,7 @@ def build_result(request, config, runtime, outcome, started, wall_start, attempt
     """
     body, tags = outcome.metadata, outcome.tags
     state, code = outcome.state, outcome.code
-    payload = config.payload(request.event.title)
+    payload = payload if payload is not None else config.payload(request.event.title)
     result = {
         "request_id": request.request_id,
         "job_id": request.job_id,

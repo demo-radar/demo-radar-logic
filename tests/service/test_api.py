@@ -263,7 +263,9 @@ def test_private_journal_attempt_and_batch_caps(tmp_path):
         journal.begin(r, "identity-4", "event-key", 0)
     assert exc.value.code == "event_attempt_limit"
     other = Journal(tmp_path / "batch.sqlite")
-    for n in range(40):
+    from service.tasks.limits import MAX_JOB_ATTEMPTS
+
+    for n in range(MAX_JOB_ATTEMPTS):
         r = TagRequest(**request(n))
         other.begin(r, str(n), str(n), 0)
         other.finish(r.request_id, {"tags": []}, 200, "ok")
@@ -661,14 +663,16 @@ def test_provider_factory_is_explicit_and_secrets_are_not_repr(tmp_path):
 
 def test_higher_event_allowance_does_not_raise_total_batch_limit(tmp_path):
     journal = Journal(tmp_path / "batch-override.sqlite", max_attempts=5)
-    for number in range(120):
+    from service.tasks.limits import MAX_JOB_ATTEMPTS
+
+    for number in range(MAX_JOB_ATTEMPTS):
         event = TagRequest(**request(number // 4))
         event.request_id = f"attempt-{number}"
         journal.begin(event, str(number), str(number // 4), 0)
         journal.finish(event.request_id, {"tags": None}, 502, "failed")
     event = TagRequest(**request(31))
     with pytest.raises(AdmissionError) as exc:
-        journal.begin(event, "121", "31", 0)
+        journal.begin(event, "over-limit", "31", 0)
     assert exc.value.code == "batch_limit"
 
 
@@ -696,3 +700,12 @@ def test_save_conflict_never_claims_no_inference():
 
     reply = asyncio.run(rejected(None, AdmissionError("attempt_already_finalized")))
     assert "inference_admitted" not in json.loads(reply.body)
+
+
+@pytest.mark.parametrize("limit", [0, 31, 120, True])
+def test_journal_rejects_job_allowances_outside_the_server_ceiling(tmp_path, limit):
+    journal = Journal(tmp_path / "invalid-limit.sqlite")
+    with pytest.raises(ValueError, match="Job attempts"):
+        journal.begin(TagRequest(**request()), "identity", "event-key", 0, max_job_attempts=limit)
+    with journal.connection() as db:
+        assert db.execute("SELECT count(*) FROM attempts").fetchone()[0] == 0

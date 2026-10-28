@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "default_tagging": "tagging-gem-v1",
+  "gems": {
+    "tagging-gem-v1": {
+      "path": "tagging-v1.json",
+      "sha256": "388a4f1c62972fea461fe07cc8f93bd94267055dd713ee67826de3cc3c52df1c"
+    }
+  }
+}

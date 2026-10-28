@@ -24,7 +24,7 @@ flowchart LR
 
 Tags and summaries share one execution lane. Only one call runs at a time.
 Duplicate requests return the saved answer without another call. Jobs keep their
-original settings; changing profiles does not reset retry limits.
+original settings; changing profiles does not reset classifier or summary retry limits.
 
 **An unknown outcome blocks new calls, including after a restart or profile
 change.** Use the [recovery procedure](service-api.md#what-happens-if-the-connection-drops)
@@ -40,6 +40,37 @@ are documented in the [tagging contract](service-api.md#tagging-contract).
 An `enabled` profile has configured execution requirements; it does not prove
 that a live call succeeded or that spending allowance remains.
 Summary profiles appear only when summaries are enabled.
+
+## Run a Gem through Radar
+
+Open a demonstration in Support and expand **6. Gems → Suggest topic tags**.
+
+1. Choose **Copy Gem** to use your own chat, or sign in as an admin and choose
+   **Send to DemoLogic** to use the API. Both use the instructions and demo facts
+   shown under **View Gem**.
+2. For Send, choose a provider and click once. The status appears below the button.
+3. When the reply is saved, open **View Gem reply**. It shows the tags, explanation,
+   model and confidence. Confidence is the model's estimate, not measured accuracy.
+4. Choose **Review suggested tags**, check the selection, and confirm it in the
+   existing review section. Sending a Gem never publishes tags by itself.
+
+Admins can ask again for an already-tagged demo. Each new Send allows one model
+attempt. Previous tagging attempts and the automatic batch cooldown do not prevent
+it. Provider waiting periods, spending limits and other active work still apply.
+Copying or viewing a reply makes no model call.
+
+If Send is not confirmed, use **Check or retry Gem request**. Radar checks whether
+the original request was saved before retrying it. If the provider outcome remains
+unknown, an admin must complete [recovery](service-api.md#what-happens-if-the-connection-drops) before new
+inference can start. Closing an unknown attempt keeps its history and reserved cost.
+
+Gem instructions have their own version, such as `tagging-gem-v1`, independent of
+the provider. A new instruction or reply format needs a new version. The Gem factory
+loads approved versions from `configs/gems/catalog.json` and checks the file hash.
+Radar keeps a matching copy; different instructions prevent Send.
+
+For endpoint names, authentication and request fields, see the
+[Gem API reference](service-api.md#manual-tagging-gem-contract).
 
 ## Keep older profiles
 
@@ -72,7 +103,8 @@ For an upgrade:
 1. Pause new jobs, finish active calls and resolve unknown outcomes.
 2. Back up the private journal and required profile assets.
 3. Test with synthetic inputs and retain profiles needed by saved jobs.
-4. Upgrade Logic and check catalog/readiness before resuming Radar.
+4. Upgrade Logic and restart both the Radar API and its separate worker with
+   matching code; check catalog/readiness before resuming Radar.
 
 For rollback, pause and drain again, preserve the current journal, and restore
 a compatible service image with its approved profile files. Keep the current request

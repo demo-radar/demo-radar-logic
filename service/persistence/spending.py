@@ -6,6 +6,7 @@ import re
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
+from service.persistence.journal.exceptions import AdmissionError
 from service.providers.models import MODEL_CATALOG
 
 
@@ -32,8 +33,6 @@ def cost(input_tokens, output_tokens, price):
 
 def policy(settings, config, *, input_tokens=None, output_tokens=None):
     """Return a complete operator-approved policy, or refuse before admission."""
-    from service.persistence.journal import AdmissionError
-
     if settings.mode != "live":
         return None
     model = MODEL_CATALOG.get(config.model)
@@ -114,8 +113,6 @@ def initialize(db):
 
 def reserve(db, request, approved, *, summary_allowance=None):
     """Share run and UTC-day ceilings across tasks, profiles, retries and restarts."""
-    from service.persistence.journal import AdmissionError
-
     if approved is None:
         return
     if db.execute(
@@ -204,8 +201,6 @@ def reconcile(db, request_id, result, state):
 
 def inspect(db, request_id):
     """Return private cost evidence without credentials or generated content."""
-    from service.persistence.journal import AdmissionError
-
     row = db.execute("SELECT * FROM spending WHERE request_id=?", (request_id,)).fetchone()
     if row is None:
         raise AdmissionError("not_found", 404)
@@ -224,8 +219,6 @@ def inspect(db, request_id):
 
 def settle(db, request_id, amount_usd, operator, reason):
     """Record verified account evidence without changing the original model result."""
-    from service.persistence.journal import AdmissionError
-
     try:
         charged = money(amount_usd)
     except ValueError:

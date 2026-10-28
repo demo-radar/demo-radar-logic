@@ -54,6 +54,9 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `GET /health/ready` | Authenticated admission/readiness state |
 | `GET /v1/openapi.json` | Implemented request and response schemas |
 | `GET /v1/task-profiles` | Read-only supported task/profile catalog and client contracts |
+| `GET /v1/gem-profiles` | Available versioned Gem profiles; no inference |
+| `POST /v1/gems/tagging/preview` | Same system/context messages used for Copy Gem and execution; no reservation |
+| `POST /v1/gems/tagging` | Execute a pinned tagging Gem and save its JSON reply for review |
 | `GET /v1/attempts/{id}/spending` | Private reservation and charge evidence |
 | `POST /v1/attempts/{id}/spending` | Audited operator reconciliation after verified account evidence |
 | `GET /v1/attempts/{request_id}/execution` | Private saved configuration and measured phase facts |
@@ -83,7 +86,7 @@ retained profiles, saved execution records and upgrade/rollback procedure.
 }
 ```
 
-Both tagging and summary requests accept an optional `execution` object:
+Regular F0 tagging and summary requests accept an optional `execution` object:
 
 * `task`: `tagging` or `daily-summary`, matching the endpoint.
 * `profile_sha256`: the exact hash returned by the approved profile catalog.
@@ -122,6 +125,53 @@ or database text. Display them as escaped text in staff interfaces.
 `inference_admitted: false` explicitly identifies a confirmed refusal before
 inference. A missing response or bare HTTP status is not equivalent evidence.
 
+## Manual tagging Gem contract
+
+This API lets Radar send a tagging Gem and save its JSON reply for review.
+For the buttons and staff workflow, use the [task execution guide](task-execution.md#run-a-gem-through-radar).
+
+These are private service endpoints. Every Gem endpoint requires the service
+bearer token; Radar separately checks that the person clicking Send is an admin.
+Keep the token in the backend's private settings, never in the browser or Git.
+Publishing this API reference does not give callers permission to use it.
+
+| Endpoint | What it does |
+| --- | --- |
+| `GET /v1/gem-profiles` | Lists the Gem versions supported by this service. |
+| `POST /v1/gems/tagging/preview` | Shows the exact instructions and demo context, without a model call. |
+| `POST /v1/gems/tagging` | Makes one model attempt and saves its reply privately. |
+
+The preview accepts the selected base profile's ID/hash and the demo `context`.
+It returns the Gem profile to use when sending.
+
+For Send, Radar supplies:
+
+| Field | Meaning |
+| --- | --- |
+| `job_id`, `request_id` | Identify this deliberate Send. Keep both when retrying a lost response. |
+| `model_id` | The Gem profile returned by preview. |
+| `input_variant` | `GEM-v1`, to distinguish Gem input from title-only classification. |
+| `event`, `source_version`, `context` | Identify the demo and preserve the facts shown in the preview. |
+| `execution` | Confirms `task: tagging`, `origin: manual_api` and the preview's `profile_sha256`. |
+
+Missing or changed identities are rejected before a call. Each Gem job allows
+one attempt; a repeated identical request returns its saved result. Read a saved
+reply through `GET /v1/attempts/{request_id}`. Spending and recovery rules are
+explained in the main guide.
+
+The result's `gem_reply` contains:
+
+```json
+{
+  "external_id": "abc123",
+  "tags": ["mobility"],
+  "confidence": 0.95,
+  "reason": "The slogan calls for safer roads."
+}
+```
+
+This reply is a private suggestion. A separate Radar review approves public tags.
+
 ## Evaluated configuration and limits
 
 The [tagging catalog](../configs/inference/catalog.json) registers `qwen-v4-v1`.
@@ -137,7 +187,7 @@ See [provider settings and spending](provider-settings.md) for the monetary guar
 pricing revision, keys and release checklist. There is no automatic fallback.
 
 The service admits one provider attempt at a time across processes sharing the
-same journal. Tagging has hard batch ceilings of 40 distinct event IDs and 120
+same journal. Tagging has hard batch ceilings of 40 distinct event IDs and 30
 attempts, and a configurable persistent per-event-input attempt allowance
 (default three). A deployed Radar batch may be more conservative: five events
 and one attempt. Requests cannot override the service’s limits.
@@ -206,10 +256,39 @@ and DeepL translation are separate stages owned by the service and Radar respect
 
 ## Code map and checks
 
-`app.py` assembles the service; `lifecycle.py` manages resources. `api/` handles
-auth/routes, `inference/` admission/results/recovery, `providers/` transport,
-`persistence/` durable state and `summary/` the daily contract. Request/response
-schemas and safe errors remain shared at the service root.
+The main service components are grouped by responsibility:
+
+```text
+service/
+├── app.py                   # HTTP application
+├── lifecycle.py             # Shared resources and shutdown
+├── tasks/
+│   ├── factory.py           # Assemble tagging, summaries and Gems
+│   └── limits.py            # Server-owned execution ceilings
+├── gems/                    # Versioned definitions, factory and execution
+├── inference/               # Shared inference controller and saved results
+├── providers/               # Provider adapters and their factory
+├── summary/                 # Daily-summary contract and generation
+└── persistence/
+    ├── journal/
+    │   ├── __init__.py      # Public Journal and AdmissionError imports
+    │   ├── repository.py    # Connections, saved attempts and replay
+    │   ├── admission.py     # Atomic admission, pacing and limits
+    │   ├── schema.py        # Additive database upgrades
+    │   ├── recovery.py      # Maintenance and audited unknown closure
+    │   └── exceptions.py    # Structured admission errors
+    ├── locking.py           # Host/process locks
+    ├── spending.py          # Durable monetary reservations and charges
+    └── recover.py           # Offline operator recovery command
+```
+
+`tasks/factory.py` assembles services. `gems/factory.py` loads approved Gem versions;
+`providers/factory.py` selects the vendor adapter. The public import remains
+`from service.persistence.journal import Journal`.
+
+Journal components share one connection factory and preserve each operation's
+transaction boundary. Grouping the files does not move or recreate the SQLite
+journal. Request/response schemas and safe errors remain shared at the service root.
 
 The boundary schemas live with their feature:
 

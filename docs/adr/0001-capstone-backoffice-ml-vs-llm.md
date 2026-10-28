@@ -1389,3 +1389,11 @@ Title and summary translation share Demo Radar's `DeepLProvider` object for cred
 Lost replies and worker restarts use up to three checks of the original saved request. These checks do not call the model. A known outcome is saved and handled under the normal Stop and job-limit rules. A saved unknown outcome, or failed checks, ends the batch as Needs attention and pauses new tagging and summary calls. The operational sequence in section 5.3 includes this path. See the [recovery flow](../service-api.md#what-happens-if-the-connection-drops) for admin steps. Sequential execution and the 30-second tagging cooldown remain unchanged.
 
 Support adds one audited admin action for finalized unknown answers at least 15 minutes old. It records the authenticated actor, explanation and time, preserves unknown usage, and blocks that exact input. Both the backend worker lock and the service activity lock prevent local execution from overlapping closure. The wait is a precaution; it does not prove remote cancellation. An unfinished service marker still requires investigation. A lost recovery confirmation is reconciled only from a validated saved resolution. No timeout automatically deletes pending work or grants retry permission.
+
+
+### 28 October 2026 — Lower the runtime job ceiling
+
+The runtime hard ceiling is now 30 attempts per job, replacing the earlier
+120-attempt ceiling. The coordinator and journal share the same limit definition.
+Manual Gem jobs remain limited to one attempt per deliberate Send. Earlier
+entries above record the decisions in effect at the time; they are retained as history.

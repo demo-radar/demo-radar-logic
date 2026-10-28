@@ -12,8 +12,12 @@ locally defined: database details, provider text, titles and keys never appear.
 from http import HTTPStatus
 
 from service.contracts import ErrorDetail
+from service.gems.errors import GEM_ERRORS
+from service.summary.errors import SUMMARY_ERRORS
 
 MESSAGES = {
+    **GEM_ERRORS,
+    **SUMMARY_ERRORS,
     "token_count_unavailable": "Provider input size could not be checked. No generation was admitted; try again later.",
     "spending_review_required": "Reported usage exceeded its reservation. An operator must reconcile spending before more paid work.",
     "provider_disabled": "This provider is disabled. An operator must approve activation.",
@@ -28,16 +32,6 @@ MESSAGES = {
     "resolution_conflict": "This attempt already has a different recovery decision. Read its saved result.",
     "maintenance_required": "Pause admission before recovering an unknown attempt.",
     "event_outcome_closed_unknown": "An operator closed an unknown result for this input. It cannot be sent again; review it manually.",
-    "summary_disabled": "Daily draft generation is disabled by the operator.",
-    "summary_input_too_large": "The complete daily snapshot exceeds the input limit. No events were dropped.",
-    "invalid_summary_envelope": "The provider response is missing the completion fields. The attempt was saved as failed.",
-    "incomplete_summary_response": "The provider did not finish the summary. No partial draft was accepted.",
-    "summary_model_mismatch": "The provider returned a model outside the pinned summary configuration.",
-    "invalid_summary_json": "The summary was not valid JSON. The attempt was saved as failed.",
-    "summary_word_limit": "The completed summary exceeded its writing word budget. The attempt and usage were saved as failed.",
-    "summary_example_leakage": "The summary copied an example phrase without support in its cited sources. The attempt and usage were saved as failed.",
-    "invalid_summary_schema": "The summary did not match the required fields or length limits. The attempt was saved as failed.",
-    "invalid_summary_citations": "The draft cites missing or duplicate event IDs. Staff review is required.",
     "invalid_request": "Check the request fields against the API contract.",
     "unauthorized": "A valid service bearer token is required.",
     "not_found": "The requested route or attempt does not exist.",

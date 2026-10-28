@@ -16,6 +16,7 @@ from service.inference.results import AttemptOutcome, build_result, fingerprint,
 from service.inference.validation import validate_tags
 from service.persistence.journal import AdmissionError
 from service.providers.base import ProviderFailure
+from service.tasks.limits import MAX_JOB_EVENTS, ExecutionLimits
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class InferenceService:
     """
 
     task = "tagging"
+    execution_limits = ExecutionLimits()
 
     def __init__(self, settings, config, journal, provider):
         self.settings, self.config = settings, config
@@ -56,7 +58,18 @@ class InferenceService:
         if self.settings.mode == "demo" and not request.event.id.startswith("synthetic-"):
             raise AdmissionError("synthetic_event_required", 422)
         identity = request_identity(request, self.config.sha256, self.settings.mode, self.task)
-        event_key = fingerprint(
+        event_key = self.attempt_key(request)
+        return await self._admit(
+            request,
+            identity,
+            event_key,
+            lambda: self._infer(request, self.journal.attempt_count(event_key)),
+            max_attempts=self.execution_limits.max_attempts,
+        )
+
+    def attempt_key(self, request):
+        """Identify regular classifier work by source and configuration."""
+        return fingerprint(
             {
                 "event": request.event.model_dump(),
                 "source": request.source_version,
@@ -64,11 +77,21 @@ class InferenceService:
                 "mode": self.settings.mode,
             }
         )
-        return await self._admit(
-            request,
-            identity,
-            event_key,
-            lambda: self._infer(request, self.journal.attempt_count(event_key)),
+
+    def allowance_key(self, request):
+        """Share regular task retries across provider/profile changes."""
+        return fingerprint(
+            {
+                "task": self.task,
+                "mode": self.settings.mode,
+                "source": source_identity(request, self.task),
+            }
+        )
+
+    def payload_for(self, request):
+        """Build the pinned task payload used by reservation and execution."""
+        return self.config.payload(
+            request.event.title if self.task == "tagging" else request.snapshot
         )
 
     def validate_profile(self, request):
@@ -113,9 +136,7 @@ class InferenceService:
         lock = activity_lock(self.journal.path)
         lock.__enter__()
         try:
-            payload = self.config.payload(
-                request.event.title if self.task == "tagging" else request.snapshot
-            )
+            payload = self.payload_for(request)
             approved = policy(self.settings, self.config)
             if approved is not None:
                 try:
@@ -134,6 +155,7 @@ class InferenceService:
                 event_key,
                 self.settings.min_interval_seconds,
                 spending=approved,
+                max_job_attempts=self.execution_limits.max_job_attempts,
                 execution={
                     **describe_profile(self.task, self.config),
                     "mode": self.settings.mode,
@@ -147,17 +169,11 @@ class InferenceService:
                     "timeout_seconds": self.settings.timeout_seconds
                     if self.task == "tagging"
                     else self.settings.summary_timeout_seconds,
-                    "batch_event_limit": 40,
-                    "batch_attempt_limit": 120,
+                    "batch_event_limit": MAX_JOB_EVENTS,
+                    "batch_attempt_limit": self.execution_limits.max_job_attempts,
                     "admitted_at": utc_now(),
                 },
-                allowance_key=fingerprint(
-                    {
-                        "task": self.task,
-                        "mode": self.settings.mode,
-                        "source": source_identity(request, self.task),
-                    }
-                ),
+                allowance_key=self.allowance_key(request),
                 **options,
             )
             if saved:

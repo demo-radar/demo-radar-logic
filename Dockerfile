@@ -7,6 +7,7 @@ COPY src ./src
 RUN uv sync --locked --no-dev --group service --no-install-project
 COPY service ./service
 COPY configs/inference ./configs/inference
+COPY configs/gems ./configs/gems
 COPY configs/summary ./configs/summary
 COPY docs/rubrics/tagging-rubric-v4.md ./docs/rubrics/tagging-rubric-v4.md
 RUN uv sync --locked --no-dev --group service --no-editable \

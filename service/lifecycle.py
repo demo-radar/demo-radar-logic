@@ -11,7 +11,7 @@ import httpx
 
 from service.config import Settings
 from service.persistence.locking import server_lock
-from service.task_factory import TaskServiceFactory
+from service.tasks.factory import TaskServiceFactory
 
 
 @asynccontextmanager

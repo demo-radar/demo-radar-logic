@@ -4,7 +4,7 @@ import json
 import math
 from datetime import UTC, datetime
 
-from service.persistence.exceptions import AdmissionError
+from service.persistence.journal.exceptions import AdmissionError
 
 
 class RecoveryStore:

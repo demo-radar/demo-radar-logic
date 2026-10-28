@@ -10,13 +10,13 @@ import time
 
 import httpx
 
-from service.execution import MAX_JOB_EVENTS, ExecutionLimits
 from service.inference.identity import request_identity, source_identity
 from service.inference.profiles import describe_profile
 from service.inference.results import AttemptOutcome, build_result, fingerprint, utc_now
 from service.inference.validation import validate_tags
 from service.persistence.journal import AdmissionError
 from service.providers.base import ProviderFailure
+from service.tasks.limits import MAX_JOB_EVENTS, ExecutionLimits
 
 logger = logging.getLogger(__name__)
 

@@ -426,7 +426,7 @@ def test_closed_unknown_requires_a_fresh_explicit_execution_and_keeps_evidence(
             "accept_unknown_outcome": True,
         }
         with monkeypatch.context() as clock:
-            clock.setattr("service.persistence.recovery_store.datetime", RecoveryClock)
+            clock.setattr("service.persistence.journal.recovery.datetime", RecoveryClock)
             closed = client.post("/v1/attempts/gem-request/close", json=action, headers=AUTH)
             assert closed.status_code == 200, closed.text
         replay = client.post("/v1/gems/tagging", json=body(), headers=AUTH)

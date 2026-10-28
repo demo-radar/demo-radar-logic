@@ -263,7 +263,7 @@ def test_private_journal_attempt_and_batch_caps(tmp_path):
         journal.begin(r, "identity-4", "event-key", 0)
     assert exc.value.code == "event_attempt_limit"
     other = Journal(tmp_path / "batch.sqlite")
-    from service.execution import MAX_JOB_ATTEMPTS
+    from service.tasks.limits import MAX_JOB_ATTEMPTS
 
     for n in range(MAX_JOB_ATTEMPTS):
         r = TagRequest(**request(n))
@@ -663,7 +663,7 @@ def test_provider_factory_is_explicit_and_secrets_are_not_repr(tmp_path):
 
 def test_higher_event_allowance_does_not_raise_total_batch_limit(tmp_path):
     journal = Journal(tmp_path / "batch-override.sqlite", max_attempts=5)
-    from service.execution import MAX_JOB_ATTEMPTS
+    from service.tasks.limits import MAX_JOB_ATTEMPTS
 
     for number in range(MAX_JOB_ATTEMPTS):
         event = TagRequest(**request(number // 4))

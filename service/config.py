@@ -7,9 +7,9 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from service.execution import MAX_JOB_ATTEMPTS
 from service.providers.gemini import GeminiProvider
 from service.providers.hetzner import HetznerProvider
+from service.tasks.limits import MAX_JOB_ATTEMPTS
 
 
 @dataclass(frozen=True)

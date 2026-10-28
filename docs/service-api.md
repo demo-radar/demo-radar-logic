@@ -256,23 +256,39 @@ and DeepL translation are separate stages owned by the service and Radar respect
 
 ## Code map and checks
 
-Task assembly lives in `task_factory.py`: it creates the tagging, summary and Gem
-services. `gems/factory.py` resolves approved Gem versions; `providers/factory.py`
-selects the provider adapter. Each factory has one responsibility.
+The main service components are grouped by responsibility:
 
-The public `Journal` interface remains in `persistence/journal.py`. Its collaborators
-share the same transaction handling:
+```text
+service/
+├── app.py                   # HTTP application
+├── lifecycle.py             # Shared resources and shutdown
+├── tasks/
+│   ├── factory.py           # Assemble tagging, summaries and Gems
+│   └── limits.py            # Server-owned execution ceilings
+├── gems/                    # Versioned definitions, factory and execution
+├── inference/               # Shared inference controller and saved results
+├── providers/               # Provider adapters and their factory
+├── summary/                 # Daily-summary contract and generation
+└── persistence/
+    ├── journal/
+    │   ├── __init__.py      # Public Journal and AdmissionError imports
+    │   ├── repository.py    # Connections, saved attempts and replay
+    │   ├── admission.py     # Atomic admission, pacing and limits
+    │   ├── schema.py        # Additive database upgrades
+    │   ├── recovery.py      # Maintenance and audited unknown closure
+    │   └── exceptions.py    # Structured admission errors
+    ├── locking.py           # Host/process locks
+    ├── spending.py          # Durable monetary reservations and charges
+    └── recover.py           # Offline operator recovery command
+```
 
-* `journal_schema.py` upgrades database tables and preserves historical evidence.
-* `admission.py` checks replay, pacing and limits before reserving a request.
-* `recovery_store.py` handles maintenance and audited unknown-outcome closure.
+`tasks/factory.py` assembles services. `gems/factory.py` loads approved Gem versions;
+`providers/factory.py` selects the vendor adapter. The public import remains
+`from service.persistence.journal import Journal`.
 
-
-`app.py` assembles the service; `lifecycle.py` manages resources. `api/` handles
-auth/routes, `task_factory.py` task-service assembly, `gems/` versioned Gem definitions,
-`inference/` admission/results/recovery, `providers/` transport,
-`persistence/` durable state and `summary/` the daily contract. Request/response
-schemas and safe errors remain shared at the service root.
+Journal components share one connection factory and preserve each operation's
+transaction boundary. Grouping the files does not move or recreate the SQLite
+journal. Request/response schemas and safe errors remain shared at the service root.
 
 The boundary schemas live with their feature:
 

@@ -6,7 +6,7 @@ import re
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
-from service.persistence.exceptions import AdmissionError
+from service.persistence.journal.exceptions import AdmissionError
 from service.providers.models import MODEL_CATALOG
 
 

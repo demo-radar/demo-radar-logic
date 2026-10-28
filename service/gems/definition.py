@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 
-from service.execution import ExecutionLimits
+from service.tasks.limits import ExecutionLimits
 
 
 @dataclass(frozen=True)

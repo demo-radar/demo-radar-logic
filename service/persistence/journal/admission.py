@@ -5,9 +5,9 @@ import math
 import time
 from datetime import UTC, datetime
 
-from service.execution import MAX_JOB_ATTEMPTS, MAX_JOB_EVENTS
-from service.persistence.exceptions import AdmissionError
+from service.persistence.journal.exceptions import AdmissionError
 from service.persistence.spending import reserve as reserve_spending
+from service.tasks.limits import MAX_JOB_ATTEMPTS, MAX_JOB_EVENTS
 
 
 class AttemptAdmission:

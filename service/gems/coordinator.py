@@ -20,8 +20,9 @@ class GemService(InferenceService):
     global unknown-outcome blocking, provider pacing and spending stay shared.
     """
 
-    attempt_limit = 1
-    job_attempt_limit = 1
+    @property
+    def execution_limits(self):
+        return self.config.gem.limits
 
     def attempt_key(self, request):
         """Keep all attempts within one explicit execution under a single limit."""

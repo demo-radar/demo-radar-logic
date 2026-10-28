@@ -1,7 +1,6 @@
 """Pin the Gem instructions, model profile and structured reply together."""
 
 import copy
-import hashlib
 import json
 
 from service.inference.results import fingerprint
@@ -10,12 +9,11 @@ from service.providers.models import MODEL_CATALOG
 
 
 class GemConfig:
-    def __init__(self, root, base):
-        raw = (root / "configs/gems/tagging-v1.json").read_bytes()
-        self.definition = json.loads(raw)
-        self.gem_sha256 = hashlib.sha256(raw).hexdigest()
+    def __init__(self, base, gem):
+        self.gem = gem
+        self.gem_sha256 = gem.sha256
         self.base_profile_id = base.version
-        self.version = base.version + "-" + self.definition["version"]
+        self.version = base.version + "-" + gem.version
         self.sha256 = fingerprint({"base": base.sha256, "gem": self.gem_sha256})
         self.provider, self.model, self.endpoint = base.provider, base.model, base.endpoint
         model = MODEL_CATALOG[self.model]
@@ -27,13 +25,13 @@ class GemConfig:
             "json_schema": {
                 "name": "tagging_gem",
                 "strict": True,
-                "schema": self.definition["schema"],
+                "schema": gem.output_schema,
             },
         }
         self.data = {
-            "wrapper": " ".join(self.definition["system"]),
+            "wrapper": " ".join(gem.system),
             "maximum_predicted_tags": 2,
-            "output_schema": self.definition["schema"],
+            "output_schema": gem.output_schema,
             "candidate": {"settings": settings},
         }
 

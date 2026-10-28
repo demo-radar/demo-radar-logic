@@ -10,6 +10,7 @@ import time
 
 import httpx
 
+from service.execution import MAX_JOB_EVENTS, ExecutionLimits
 from service.inference.identity import request_identity, source_identity
 from service.inference.profiles import describe_profile
 from service.inference.results import AttemptOutcome, build_result, fingerprint, utc_now
@@ -34,8 +35,7 @@ class InferenceService:
     """
 
     task = "tagging"
-    attempt_limit = None
-    job_attempt_limit = 120
+    execution_limits = ExecutionLimits()
 
     def __init__(self, settings, config, journal, provider):
         self.settings, self.config = settings, config
@@ -64,7 +64,7 @@ class InferenceService:
             identity,
             event_key,
             lambda: self._infer(request, self.journal.attempt_count(event_key)),
-            max_attempts=self.attempt_limit,
+            max_attempts=self.execution_limits.max_attempts,
         )
 
     def attempt_key(self, request):
@@ -155,7 +155,7 @@ class InferenceService:
                 event_key,
                 self.settings.min_interval_seconds,
                 spending=approved,
-                max_job_attempts=self.job_attempt_limit,
+                max_job_attempts=self.execution_limits.max_job_attempts,
                 execution={
                     **describe_profile(self.task, self.config),
                     "mode": self.settings.mode,
@@ -169,8 +169,8 @@ class InferenceService:
                     "timeout_seconds": self.settings.timeout_seconds
                     if self.task == "tagging"
                     else self.settings.summary_timeout_seconds,
-                    "batch_event_limit": 40,
-                    "batch_attempt_limit": self.job_attempt_limit,
+                    "batch_event_limit": MAX_JOB_EVENTS,
+                    "batch_attempt_limit": self.execution_limits.max_job_attempts,
                     "admitted_at": utc_now(),
                 },
                 allowance_key=self.allowance_key(request),

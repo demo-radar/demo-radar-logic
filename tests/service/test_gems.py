@@ -9,8 +9,8 @@ from fastapi.testclient import TestClient
 
 from service.app import create_app
 from service.config import InferenceConfig
-from service.gems.config import GemConfig
 from service.gems.contracts import GemContext
+from service.gems.factory import GemFactory
 from tests.service.test_api import AUTH, ROOT, completion, live_app, settings
 
 CONTEXT = {
@@ -27,7 +27,7 @@ CONTEXT = {
 
 
 def body(root=ROOT):
-    config = GemConfig(root, InferenceConfig(root))
+    config = GemFactory(root).config(InferenceConfig(root))
     return {
         "request_id": "gem-request",
         "job_id": "gem-job",
@@ -45,7 +45,7 @@ def test_copy_and_send_share_messages_and_preview_has_no_side_effects(tmp_path):
     with TestClient(app) as client:
         for version in ("qwen-v4-v1", "gemini-v4-v1"):
             base = InferenceConfig(ROOT, version)
-            config = GemConfig(ROOT, base)
+            config = GemFactory(ROOT).config(base)
             request = {"profile_id": version, "profile_sha256": base.sha256, "context": CONTEXT}
             assert client.post("/v1/gems/tagging/preview", json=request).status_code == 401
             response = client.post("/v1/gems/tagging/preview", json=request, headers=AUTH)
@@ -180,7 +180,7 @@ def test_paid_gemini_gem_uses_system_context_and_shared_spending_controls(tmp_pa
         assert set(native["generationConfig"]["responseJsonSchema"]["required"]) == set(expected)
         return httpx.Response(200, json=answer(content=json.dumps(expected)))
 
-    config = GemConfig(ROOT, InferenceConfig(ROOT, "gemini-v4-v1"))
+    config = GemFactory(ROOT).config(InferenceConfig(ROOT, "gemini-v4-v1"))
     data = body()
     data.update(
         model_id=config.version, execution={**data["execution"], "profile_sha256": config.sha256}
@@ -366,7 +366,7 @@ def test_fresh_paid_manual_send_keeps_reserved_unknown_usage_under_period_cap(
         calls.append(request)
         return httpx.Response(200, json=answer(content=json.dumps(reply), usage=False))
 
-    config = GemConfig(ROOT, InferenceConfig(ROOT, "gemini-v4-v1"))
+    config = GemFactory(ROOT).config(InferenceConfig(ROOT, "gemini-v4-v1"))
     data = {
         **body(),
         "model_id": config.version,
@@ -426,7 +426,7 @@ def test_closed_unknown_requires_a_fresh_explicit_execution_and_keeps_evidence(
             "accept_unknown_outcome": True,
         }
         with monkeypatch.context() as clock:
-            clock.setattr("service.persistence.journal.datetime", RecoveryClock)
+            clock.setattr("service.persistence.recovery_store.datetime", RecoveryClock)
             closed = client.post("/v1/attempts/gem-request/close", json=action, headers=AUTH)
             assert closed.status_code == 200, closed.text
         replay = client.post("/v1/gems/tagging", json=body(), headers=AUTH)
@@ -504,3 +504,22 @@ def test_gem_accepts_only_approved_returned_model_names(tmp_path, returned_model
         saved = client.get("/v1/attempts/gem-request", headers=AUTH)
         assert saved.json()["statistics"] == result["statistics"]
         assert len(calls) == 1
+
+
+def test_gem_factory_rejects_changed_assets_and_unknown_versions(tmp_path):
+    """A version name alone cannot authorize changed instructions."""
+    import shutil
+
+    shutil.copytree(ROOT / "configs/gems", tmp_path / "configs/gems")
+    factory = GemFactory(tmp_path)
+    definition = factory.definition()
+    assert definition.version == "tagging-gem-v1"
+    assert definition.limits.max_attempts == definition.limits.max_job_attempts == 1
+    with pytest.raises(ValueError, match="Unsupported Gem version"):
+        factory.definition("unapproved-gem")
+    asset = tmp_path / "configs/gems/tagging-v1.json"
+    data = json.loads(asset.read_text())
+    data["system"][0] = "Changed instructions"
+    asset.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="fingerprint"):
+        factory.definition()

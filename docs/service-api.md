@@ -127,25 +127,50 @@ inference. A missing response or bare HTTP status is not equivalent evidence.
 
 ## Manual tagging Gem contract
 
-`POST /v1/gems/tagging` requires `input_variant: GEM-v1`, a Gem `model_id`,
-the full `context` and an `execution` object containing the exact Gem profile
-hash, `task: tagging` and `origin: manual_api`. Missing/mismatched fingerprints
-and scheduled origins are rejected before admission. Preview uses the base
-profile identity and returns the derived Gem profile and exact system/context
-messages without inference.
+This API lets Radar send a tagging Gem and save its JSON reply for review.
+For the buttons and staff workflow, use the [task execution guide](task-execution.md#run-a-gem-through-radar).
 
-Each authorized manual send uses a fresh job/request identity and can include
-current tags. The journal permits one provider attempt per Gem job, across
-restarts and request-ID changes. Repeating the original request retrieves its
-saved response; another deliberate send gets a fresh job. Prior successful or
-exhausted classification does not prohibit a fresh manual send. Spending caps,
-provider pacing, maintenance, the sequential lane and unknown-outcome recovery
-remain shared. An audited closure permits a new manual execution without
-clearing the old unknown usage reservation. Automatic retries are not permitted.
+These are private service endpoints. Every Gem endpoint requires the service
+bearer token; Radar separately checks that the person clicking Send is an admin.
+Keep the token in the backend's private settings, never in the browser or Git.
+Publishing this API reference does not give callers permission to use it.
 
-The saved `gem_reply` contains `external_id`, `tags`, `confidence` and `reason`.
-It remains private and requires a separate Radar review/publication action.
-See [task execution](task-execution.md#run-a-gem-through-radar) for the workflow.
+| Endpoint | What it does |
+| --- | --- |
+| `GET /v1/gem-profiles` | Lists the Gem versions supported by this service. |
+| `POST /v1/gems/tagging/preview` | Shows the exact instructions and demo context, without a model call. |
+| `POST /v1/gems/tagging` | Makes one model attempt and saves its reply privately. |
+
+The preview accepts the selected base profile's ID/hash and the demo `context`.
+It returns the Gem profile to use when sending.
+
+For Send, Radar supplies:
+
+| Field | Meaning |
+| --- | --- |
+| `job_id`, `request_id` | Identify this deliberate Send. Keep both when retrying a lost response. |
+| `model_id` | The Gem profile returned by preview. |
+| `input_variant` | `GEM-v1`, to distinguish Gem input from title-only classification. |
+| `event`, `source_version`, `context` | Identify the demo and preserve the facts shown in the preview. |
+| `execution` | Confirms `task: tagging`, `origin: manual_api` and the preview's `profile_sha256`. |
+
+Missing or changed identities are rejected before a call. Each Gem job allows
+one attempt; a repeated identical request returns its saved result. Read a saved
+reply through `GET /v1/attempts/{request_id}`. Spending and recovery rules are
+explained in the main guide.
+
+The result's `gem_reply` contains:
+
+```json
+{
+  "external_id": "abc123",
+  "tags": ["mobility"],
+  "confidence": 0.95,
+  "reason": "The slogan calls for safer roads."
+}
+```
+
+This reply is a private suggestion. A separate Radar review approves public tags.
 
 ## Evaluated configuration and limits
 
@@ -162,7 +187,7 @@ See [provider settings and spending](provider-settings.md) for the monetary guar
 pricing revision, keys and release checklist. There is no automatic fallback.
 
 The service admits one provider attempt at a time across processes sharing the
-same journal. Tagging has hard batch ceilings of 40 distinct event IDs and 120
+same journal. Tagging has hard batch ceilings of 40 distinct event IDs and 30
 attempts, and a configurable persistent per-event-input attempt allowance
 (default three). A deployed Radar batch may be more conservative: five events
 and one attempt. Requests cannot override the service’s limits.
@@ -231,8 +256,21 @@ and DeepL translation are separate stages owned by the service and Radar respect
 
 ## Code map and checks
 
+Task assembly lives in `task_factory.py`: it creates the tagging, summary and Gem
+services. `gems/factory.py` resolves approved Gem versions; `providers/factory.py`
+selects the provider adapter. Each factory has one responsibility.
+
+The public `Journal` interface remains in `persistence/journal.py`. Its collaborators
+share the same transaction handling:
+
+* `journal_schema.py` upgrades database tables and preserves historical evidence.
+* `admission.py` checks replay, pacing and limits before reserving a request.
+* `recovery_store.py` handles maintenance and audited unknown-outcome closure.
+
+
 `app.py` assembles the service; `lifecycle.py` manages resources. `api/` handles
-auth/routes, `inference/` admission/results/recovery, `providers/` transport,
+auth/routes, `task_factory.py` task-service assembly, `gems/` versioned Gem definitions,
+`inference/` admission/results/recovery, `providers/` transport,
 `persistence/` durable state and `summary/` the daily contract. Request/response
 schemas and safe errors remain shared at the service root.
 

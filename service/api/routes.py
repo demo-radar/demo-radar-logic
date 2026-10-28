@@ -267,7 +267,7 @@ async def gem_preview(body: GemPreview, http_request: Request):
     return {
         "schema_version": 1,
         "profile": http_request.app.state.gems.describe(service),
-        "gem_version": service.config.definition["version"],
+        "gem_version": service.config.gem.version,
         "gem_sha256": service.config.gem_sha256,
         "messages": service.config.payload(body.context)["messages"],
     }

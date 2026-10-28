@@ -9,14 +9,9 @@ from contextlib import asynccontextmanager
 
 import httpx
 
-from service.config import InferenceConfig, Settings
-from service.inference.coordinator import InferenceService
-from service.inference.profiles import TaskProfiles
-from service.persistence.journal import Journal
+from service.config import Settings
 from service.persistence.locking import server_lock
-from service.providers.factory import create_provider, create_summary_provider
-from service.summary.config import SummaryConfig
-from service.summary.coordinator import SummaryService
+from service.task_factory import TaskServiceFactory
 
 
 @asynccontextmanager
@@ -39,8 +34,6 @@ async def service_lifespan(app, *, settings=None, transport=None):
 @asynccontextmanager
 async def _locked_service_lifespan(app, *, runtime, transport):
     """Compose and drain resources while holding the shared server lock."""
-    config = InferenceConfig(runtime.root, runtime.config_id)
-    journal = Journal(runtime.database, max_attempts=runtime.max_attempts_per_event)
     async with httpx.AsyncClient(
         transport=transport,
         follow_redirects=False,
@@ -48,57 +41,9 @@ async def _locked_service_lifespan(app, *, runtime, transport):
         timeout=httpx.Timeout(runtime.timeout_seconds, connect=10),
         limits=httpx.Limits(max_connections=1),
     ) as client:
-        app.state.service = InferenceService(
-            runtime, config, journal, create_provider(runtime, config, client)
-        )
-        app.state.profiles = TaskProfiles()
-        app.state.profiles.add(app.state.service)
-        for version in dict.fromkeys((*runtime.retained_tag_configs, "gemini-v4-v1")):
-            if version != config.version:
-                retained = InferenceConfig(runtime.root, version)
-                app.state.profiles.add(
-                    InferenceService(
-                        runtime, retained, journal, create_provider(runtime, retained, client)
-                    )
-                )
-        from service.gems.config import GemConfig
-        from service.gems.coordinator import GemService
-
-        app.state.gems = TaskProfiles()
-        app.state.gems_by_base = {}
-        for base in app.state.profiles.services.values():
-            gem_config = GemConfig(runtime.root, base.config)
-            service = GemService(
-                runtime, gem_config, journal, create_provider(runtime, gem_config, client)
-            )
-            app.state.gems.add(service)
-            app.state.gems_by_base[base.config.version] = service
-        app.state.summary = None
-        if runtime.summary_enabled:
-            versions = dict.fromkeys(
-                (
-                    runtime.summary_config_id,
-                    *runtime.retained_summary_configs,
-                    "hetzner-daily-v1",
-                    "gemini-daily-v1",
-                )
-            )
-            for version in versions:
-                summary_config = SummaryConfig(runtime.root, version)
-                service = SummaryService(
-                    runtime,
-                    summary_config,
-                    Journal(runtime.database, max_attempts=runtime.summary_max_attempts),
-                    create_summary_provider(runtime, summary_config, client),
-                )
-                app.state.profiles.add(service)
-                if version == runtime.summary_config_id:
-                    app.state.summary = service
+        services = TaskServiceFactory(runtime, client).create()
+        services.attach(app.state)
         try:
             yield
         finally:
-            for service in [
-                *app.state.profiles.services.values(),
-                *app.state.gems.services.values(),
-            ]:
-                await service.close()
+            await services.close()

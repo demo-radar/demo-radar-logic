@@ -7,6 +7,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from service.execution import MAX_JOB_ATTEMPTS
 from service.providers.gemini import GeminiProvider
 from service.providers.hetzner import HetznerProvider
 
@@ -24,7 +25,7 @@ class Settings:
     explicit constructor arguments in tests. Defaults use demo mode, 60-second
     timeout, one-second pacing and three attempts/event. Secrets are excluded
     from the object's repr. Raising attempts is an operator action, never an API
-    parameter; it does not remove the 40-event/120-attempt batch ceiling.
+    parameter; it does not remove the 40-event/30-attempt batch ceiling.
     """
 
     token: str = field(repr=False)
@@ -62,7 +63,7 @@ class Settings:
             or not 1 <= self.max_attempts_per_event <= 10
         ):
             raise ValueError(
-                "Attempts per event must be 1–10; batch attempts remain limited to 120"
+                f"Attempts per event must be 1–10; batch attempts remain limited to {MAX_JOB_ATTEMPTS}"
             )
         if self.summary_max_attempts not in {3, 5}:
             raise ValueError("Summary attempts must be 3 or 5")

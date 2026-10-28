@@ -43,36 +43,34 @@ Summary profiles appear only when summaries are enabled.
 
 ## Run a Gem through Radar
 
-Radar offers **Copy Gem** and admin-only **Send to DemoLogic**. Both use the same
-versioned `configs/gems/tagging-v1.json` instructions and explicit demonstration
-context. Instructions become the system prompt; source facts become the user
-context. No saved chat history, attachments or hidden Gem configuration is inferred.
+Open a demonstration in Support and expand **6. Gems → Suggest topic tags**.
 
-`POST /v1/gems/tagging/preview` returns these messages and the pinned Gem profile
-without inference or a spending reservation. `GET /v1/gem-profiles` lists available
-Gem profiles. `POST /v1/gems/tagging` admits one request through the shared controller,
-spending guards and journal. Lookup/recovery use the existing attempt endpoints.
+1. Choose **Copy Gem** to use your own chat, or sign in as an admin and choose
+   **Send to DemoLogic** to use the API. Both use the instructions and demo facts
+   shown under **View Gem**.
+2. For Send, choose a provider and click once. The status appears below the button.
+3. When the reply is saved, open **View Gem reply**. It shows the tags, explanation,
+   model and confidence. Confidence is the model's estimate, not measured accuracy.
+4. Choose **Review suggested tags**, check the selection, and confirm it in the
+   existing review section. Sending a Gem never publishes tags by itself.
 
-A manual Gem send is a new explicit execution, including for an already-tagged
-or previously processed demo. Radar authorizes it and supplies a fresh `job_id`
-and `request_id`. That job admits at most **one** provider attempt: a duplicate
-request replays its saved outcome, and another request ID in the same job cannot
-retry generation. Previous classifier/Gem outcomes do not exhaust a new manual
-execution. There is no automatic Gem retry or batch cooldown; shared provider
-pacing, sequential admission, maintenance and spending ceilings still apply.
-The `execution` object is required, with `task: tagging`, `origin: manual_api`
-and the exact Gem `profile_sha256`; scheduled Gem calls are rejected.
+Admins can ask again for an already-tagged demo. Each new Send allows one model
+attempt. Previous tagging attempts and the automatic batch cooldown do not prevent
+it. Provider waiting periods, spending limits and other active work still apply.
+Copying or viewing a reply makes no model call.
 
-An unresolved Gem still blocks all new inference. After explicit audited closure,
-a new manual execution may revisit the demo; the old unknown answer and its
-reserved spending remain intact. Classifier and summary source retry limits are
-unchanged. Changing request/job IDs is never an automatic recovery mechanism.
+If Send is not confirmed, use **Check or retry Gem request**. Radar checks whether
+the original request was saved before retrying it. If the provider outcome remains
+unknown, an admin must complete [recovery](service-api.md#what-happens-if-the-connection-drops) before new
+inference can start. Closing an unknown attempt keeps its history and reserved cost.
 
-The saved `gem_reply` contains the event ID, tags, self-reported confidence and
-explanation. It is private and requires review. The Gem is separate from the
-research title-only tagging profile; that profile's prompt and output stay unchanged.
-Version the Gem definition when changing its instructions/schema, and keep Radar's
-pinned copy in sync. Mismatched fingerprints or messages block sending.
+Gem instructions have their own version, such as `tagging-gem-v1`, independent of
+the provider. A new instruction or reply format needs a new version. The Gem factory
+loads approved versions from `configs/gems/catalog.json` and checks the file hash.
+Radar keeps a matching copy; different instructions prevent Send.
+
+For endpoint names, authentication and request fields, see the
+[Gem API reference](service-api.md#manual-tagging-gem-contract).
 
 ## Keep older profiles
 

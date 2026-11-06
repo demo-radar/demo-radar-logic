@@ -1,0 +1,23 @@
+name: Repository identity
+on:
+  push:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  identity:
+    name: account-identity
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      # Always use trusted base-branch code. Never run the PR checkout or its scripts.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s .github/scripts -p 'test_identity.py' -v
+      - run: python3 .github/scripts/check_identity.py
+        env:
+          GH_TOKEN: ${{ github.token }}

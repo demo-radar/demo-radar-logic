@@ -3,6 +3,9 @@ name: Publish tested ARM64 service image
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'AGENTS.md'
+      - '.github/**'
   workflow_dispatch:
 
 permissions:

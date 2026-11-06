@@ -57,6 +57,7 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `GET /v1/gem-profiles` | Available versioned Gem profiles; no inference |
 | `POST /v1/gems/tagging/preview` | Same system/context messages used for Copy Gem and execution; no reservation |
 | `POST /v1/gems/tagging` | Execute a pinned tagging Gem and save its JSON reply for review |
+| `GET /v1/monitoring/attempts?after=0` | Authenticated changed measurements for Grafana; never inference |
 | `GET /v1/attempts/{id}/spending` | Private reservation and charge evidence |
 | `POST /v1/attempts/{id}/spending` | Audited operator reconciliation after verified account evidence |
 | `GET /v1/attempts/{request_id}/execution` | Private saved configuration and measured phase facts |
@@ -269,6 +270,9 @@ service/
 ├── inference/               # Shared inference controller and saved results
 ├── providers/               # Provider adapters and their factory
 ├── summary/                 # Daily-summary contract and generation
+├── observability/
+│   ├── attempts.py          # Bounded content-free measurement pages
+│   └── schema.py            # Additive journal change tracking
 └── persistence/
     ├── journal/
     │   ├── __init__.py      # Public Journal and AdmissionError imports
@@ -310,3 +314,25 @@ Public CI checks lint/format, synthetic tests and the publication boundary, then
 builds the image and runs the isolated Docker smoke script. These checks require
 no private dataset or provider key. Publishing an image is not deployment acceptance. See the
 [ARM64 release guide](release-images.md) for digest records and pull commands.
+
+## Read provider measurements
+
+Radar reads `GET /v1/monitoring/attempts?after=<cursor>` with the existing service
+bearer token. Each page returns `schema_version`, `journal_id`, up to 100
+`attempts`, `next_cursor` and `complete`. Save the checkpoint only after the
+whole refresh commits. A smaller cursor or changed journal identity requires
+operator investigation after a restore/replacement; do not silently start over.
+
+Measurements contain saved task/provider/model/profile identities, origin and
+environment, dispatch evidence, known token counts, phase timings and current
+spending reconciliation. They exclude source text, prompts, provider bodies,
+credentials, billing-account names and operator notes. Request/job IDs are private
+correlation keys and must not become public metric labels. Missing historical
+evidence stays null/unknown. Reads do not reserve tokens, call a provider, replay
+work or change its original response.
+
+The journal adds only monitoring side tables and change triggers; its existing
+schema version and execution records remain unchanged. Compatible older controllers
+still update those triggers. No provider setting or spending allowance changes.
+The application's DemoLogic monitoring guide defines dashboard comparisons and
+provider activation checks; this endpoint alone does not approve a provider.

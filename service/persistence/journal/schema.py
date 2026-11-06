@@ -3,6 +3,7 @@
 import hashlib
 import json
 
+from service.observability.schema import initialize as initialize_monitoring
 from service.persistence.spending import initialize as initialize_spending
 
 
@@ -78,6 +79,7 @@ class JournalSchema:
                 BEGIN SELECT RAISE(ABORT, 'Execution snapshot is immutable'); END""")
             self._backfill_execution(db)
             initialize_spending(db)
+            initialize_monitoring(db)
             db.execute("PRAGMA user_version = 3")
 
     @staticmethod

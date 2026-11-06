@@ -7,7 +7,7 @@ separate Demo Radar concern; this API authenticates the backend service token.
 import hmac
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
@@ -285,3 +285,11 @@ async def run_tagging_gem(body: GemRequest, http_request: Request):
         status_code=status,
         headers=root.journal.retry_headers() if status == 429 else {},
     )
+
+
+@router.get("/v1/monitoring/attempts", dependencies=auth)
+async def monitoring_attempts(service: Service, after: int = Query(default=0, ge=0, le=2**63 - 1)):
+    """Read bounded ledger measurements, including current cost reconciliation."""
+    from service.observability.attempts import AttemptMeasurements
+
+    return AttemptMeasurements(service.journal).page(after)

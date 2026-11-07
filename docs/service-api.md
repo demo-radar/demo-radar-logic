@@ -55,6 +55,7 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `GET /v1/openapi.json` | Implemented request and response schemas |
 | `GET /v1/task-profiles` | Read-only supported task/profile catalog and client contracts |
 | `GET /v1/gem-profiles` | Available versioned Gem profiles; no inference |
+| `GET /v1/route-contract` | Disabled manual route input/reply schemas; no execution |
 | `POST /v1/gems/tagging/preview` | Same system/context messages used for Copy Gem and execution; no reservation |
 | `POST /v1/gems/tagging` | Execute a pinned tagging Gem and save its JSON reply for review |
 | `GET /v1/monitoring/attempts?after=0` | Authenticated changed measurements for Grafana; never inference |
@@ -72,6 +73,19 @@ The service token is not a staff session; Demo Radar separately checks staff per
 
 The main [task execution guide](task-execution.md) explains the request flow,
 retained profiles, saved execution records and upgrade/rollback procedure.
+
+## Route proposal format (execution unavailable)
+
+Authenticated `GET /v1/route-contract` returns the `route-review-v1` input/reply
+schemas and `enabled: false`. It documents the agreed data format, not a model
+request. Empty or partial waypoint proposals can be retained for private review;
+Radar flags them as insufficient rather than accepting them as valid routes.
+Radar does not call this endpoint yet; its manual route export/import
+runs locally. The endpoint is exercised by offline service tests.
+
+No route profile or execution service is registered. `POST /v1/route-suggestions`
+is not implemented (404). A future approved pilot must use the shared controller,
+admission, spending and journal described in the [task execution guide](task-execution.md).
 
 ## Tagging contract
 
@@ -270,6 +284,7 @@ service/
 ├── inference/               # Shared inference controller and saved results
 ├── providers/               # Provider adapters and their factory
 ├── summary/                 # Daily-summary contract and generation
+├── routes/contracts.py      # Disabled route source/proposal schemas
 ├── observability/
 │   ├── attempts.py          # Bounded content-free measurement pages
 │   └── schema.py            # Additive journal change tracking

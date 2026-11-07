@@ -20,6 +20,7 @@ from service.inference.contracts import (
 from service.inference.coordinator import InferenceService
 from service.inference.recovery import RecoveryService
 from service.persistence.journal import AdmissionError
+from service.routes.contracts import route_contract as describe_routes
 from service.summary.contracts import SummaryProfileContract, SummaryRequest, SummaryResponse
 
 router = APIRouter()
@@ -293,3 +294,9 @@ async def monitoring_attempts(service: Service, after: int = Query(default=0, ge
     from service.observability.attempts import AttemptMeasurements
 
     return AttemptMeasurements(service.journal).page(after)
+
+
+@router.get("/v1/route-contract", dependencies=auth)
+async def route_contract():
+    """Read the disabled manual contract without executing or reserving work."""
+    return describe_routes()

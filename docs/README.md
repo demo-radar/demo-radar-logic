@@ -4,6 +4,7 @@ Start with the route that matches your question.
 
 | Question | Read |
 | --- | --- |
+| How does DemoLogic help maintain Demo Radar? | [DemoLogic in practice](demo-radar-in-practice.md) |
 | What can I run without data or API keys? | [Public synthetic workflow](reproducibility.md) |
 | How are the application and AI service connected? | [Current architecture](architecture.md) and [historical decisions](adr/0001-capstone-backoffice-ml-vs-llm.md) |
 | What does the service accept and return? | [API and recovery](service-api.md) |

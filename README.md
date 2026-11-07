@@ -31,26 +31,25 @@ in research; a production Gemini adapter and route repair remain future work.
 
 ## How it helps Demo Radar
 
-DemoLogic helps me review demonstration topics and prepare daily briefings for
-[Demo Radar](https://demo-radar.com). It suggests tags for staff to accept, edit
-or reject; eligible saved answers and explicitly approved rules can be reused
-for recurring events. It also drafts a German daily briefing that Demo Radar
-translates into English for review and publication. Readers see saved, approved
-content without waiting for inference.
+DemoLogic gives me a starting point when reviewing demonstrations for
+[Demo Radar](https://demo-radar.com): suggested topic tags and a draft daily
+briefing. I can keep the tags, change them or reject them before anything is
+published. Saved answers can be reused for matching events, and I can approve
+tagging rules for future dates.
+
+The daily briefing starts in German. Demo Radar translates it into English
+with DeepL, then both versions are reviewed before publication. Readers see
+the saved content; opening the map does not call the model again.
 
 ### Production tag review
 
-In production, **648 of 854 reviewed event items (75.9%) were accepted
-unchanged** as of 7 November 2026, 23:14 Berlin time. The other 206 were edited;
-no rejections were recorded. These are saved reviews of live Hetzner model
-results from 13 October to 7 November, counted per event item. A group review
-can cover several items; automatic application of approved recurring rules is
-excluded. This operational review outcome is not an independent accuracy score.
-Staff time saved has not been reliably measured.
+As of 7 November 2026, **tags were kept unchanged for 648 of 854 reviewed
+event records (75.9%)** in production. Tags were changed for the other 206.
+This tells us how often suggestions were kept, rather than how often a model
+was independently proven right. We have not yet measured time saved.
 
-The [research methodology](docs/methodology.md), [final comparison](docs/plan/final-evaluation.md)
-and [fresh-case results](docs/results/fresh-v4-confirmation.md) explain the
-separate benchmark, reference labels and their limitations.
+[How DemoLogic helps in practice](docs/demo-radar-in-practice.md) explains the
+workflow, how these numbers are counted, and how they relate to the research.
 
 ## Try it without private data or model calls
 

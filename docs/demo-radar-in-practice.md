@@ -22,12 +22,33 @@ dates. Each date remains a separate demonstration.
 ## A daily briefing in two languages
 
 DemoLogic drafts a short German briefing from the day's saved public event
-records. It brings together the day's main themes, an event in focus and
-available route information. Demo Radar translates the draft into English
-with DeepL. Both versions can be reviewed and edited before publication.
+records. It brings together the number of demonstrations, the day's main
+themes and an event in focus. The main text stays below 200 words; a separate
+**Getting around** section explains available route information. Recorded
+routes do not confirm road closures. Demo Radar translates the draft into
+English with DeepL.
 
-Readers open the saved briefing from the map. They do not have to wait for a
-new model answer, and opening it does not spend more model tokens.
+### Reviewing the daily briefing
+
+In Support, I choose a date and open its saved drafts. Generating a draft does
+not publish it. Before readers can see it, I:
+
+1. Read the German and English versions and check them against the day's
+   source records, including the event in focus and the route information.
+2. Edit any wording that needs attention and save it as a private draft.
+   If I change the German text, the English version needs another check.
+3. Confirm that I have checked both languages, then choose **Publish reviewed
+   summary**.
+
+Demo Radar keeps the edit and publication history. The public label explains
+whether the text was AI-generated and reviewed, or AI-assisted and edited.
+
+Readers open the briefing with the newspaper button on the map. It gives them
+an overview before exploring individual events. They read the saved version;
+opening it does not call the model or DeepL again.
+
+The [daily-briefing design](plan/daily-summary.md) explains the writing rules,
+worked example and review process in more detail.
 
 ## What the review numbers tell us
 
@@ -48,10 +69,27 @@ answer can support more than one event. They are also not a count of distinct
 demonstrations, since an event can have more than one result. Pending reviews
 and automatic applications of approved recurring rules are excluded.
 
-Grafana shows these review outcomes alongside pending reviews, reused answers,
-model requests and token usage. Its time filter selects jobs by their creation
-date, then shows the latest saved reviews for those jobs. That is different
-from selecting reviews by the date they were saved.
+### Reading the dashboard
+
+![Grafana tagging dashboard showing activity, review, reuse and acceptance figures](images/demo-radar-tagging-grafana.jpg)
+
+*Production tagging dashboard, 7 November 2026. Live jobs, last 30 days;
+browser tabs and address bar removed.*
+
+The screenshot shows **598 saved suggestions awaiting review** and **452 saved
+review actions**. One action can cover several events, so that is different
+from the 854 reviewed records above. Tags were published for **877 different
+demonstrations**. Reuse is tracked separately: **556 shared-answer reuses**
+and **23 applications of approved tagging rules**.
+
+The green charts show requests and known token usage over time. **Decision
+delay** is the elapsed wait until a review was saved, not time spent actively
+reviewing. These panels describe tagging; daily briefings have a separate
+Grafana dashboard.
+
+The time filter selects jobs by their creation date, then shows the latest
+saved reviews for those jobs. That is different from selecting reviews by
+the date they were saved.
 
 The acceptance rate shows how often tags were kept in this workflow. It does
 not establish model accuracy on new data, and we have not yet measured how

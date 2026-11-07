@@ -26,8 +26,31 @@ flowchart LR
 
 DemoLogic validates requests and saves answers, usage and recovery state. Demo
 Radar owns event data, background jobs, staff permissions and publication. The
-deployed tagging adapter uses Qwen on Hetzner with rubric v4. Gemini was evaluated
-in research; a production Gemini adapter and route repair remain future work.
+deployed tagging service uses Qwen on Hetzner with the v4 tagging guide. Gemini
+support is implemented for tagging and daily briefings, but is disabled in
+production as of 7 November 2026. Route repair remains future work.
+
+## How it helps Demo Radar
+
+DemoLogic gives me a starting point when reviewing demonstrations for
+[Demo Radar](https://demo-radar.com): suggested topic tags and a draft daily
+briefing. I can keep the tags, change them or reject them before anything is
+published. Saved answers can be reused for matching events, and I can approve
+tagging rules for future dates.
+
+The daily briefing starts in German. Demo Radar translates it into English
+with DeepL, then both versions are reviewed before publication. Readers see
+the saved content; opening the map does not call the model again.
+
+### Production tag review
+
+As of 7 November 2026, **tags were kept unchanged for 648 of 854 reviewed
+event records (75.9%)** in production. Tags were changed for the other 206.
+This shows how often suggestions were kept. It is not a separate test of model
+accuracy. We have not yet measured time saved.
+
+[How DemoLogic helps in practice](docs/demo-radar-in-practice.md) explains the
+workflow, how these numbers are counted, and how they relate to the research.
 
 ## Try it without private data or model calls
 

@@ -4,15 +4,19 @@ import copy
 import hashlib
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import field
 from pathlib import Path
+from typing import Annotated, Literal
 
+from pydantic import Field
+from pydantic.dataclasses import dataclass
+
+from service.environment import SETTINGS_VALIDATION, env_bool, env_number
 from service.providers.gemini import GeminiProvider
 from service.providers.hetzner import HetznerProvider
-from service.tasks.limits import MAX_JOB_ATTEMPTS
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, config=SETTINGS_VALIDATION)
 class Settings:
     """Runtime controls, supplied by Compose or the process environment.
 
@@ -28,18 +32,18 @@ class Settings:
     parameter; it does not remove the 40-event/30-attempt batch ceiling.
     """
 
-    token: str = field(repr=False)
+    token: Annotated[str, Field(min_length=1)] = field(repr=False)
     database: Path
-    mode: str = "demo"
+    mode: Literal["demo", "live"] = "demo"
     provider_key: str = field(default="", repr=False)
     free_tier_confirmed: bool = False
-    timeout_seconds: float = 60
-    min_interval_seconds: float = 1
-    max_attempts_per_event: int = 3
+    timeout_seconds: Annotated[int | float, Field(ge=1, le=60)] = 60
+    min_interval_seconds: Annotated[int | float, Field(ge=0, le=300)] = 1
+    max_attempts_per_event: Annotated[int, Field(ge=1, le=10)] = 3
     summary_config_id: str = "hetzner-daily-v1"
     summary_enabled: bool = False
-    summary_max_attempts: int = 3
-    summary_timeout_seconds: float = 60
+    summary_max_attempts: Literal[3, 5] = 3
+    summary_timeout_seconds: Annotated[int | float, Field(ge=1, le=60)] = 60
     config_id: str = "qwen-v4-v1"
     retained_tag_configs: tuple[str, ...] = ()
     retained_summary_configs: tuple[str, ...] = ()
@@ -49,28 +53,11 @@ class Settings:
     paid_run_usd: str = ""
     paid_period_usd: str = ""
     paid_account_usd: str = ""
-    environment: str = "unspecified"
+    environment: Literal["unspecified", "local", "staging", "production", "test"] = "unspecified"
     root: Path = Path(__file__).resolve().parents[1]
 
     def __post_init__(self):
         """Fail startup on missing credentials or unsafe runtime limits."""
-        if not self.token or self.mode not in {"demo", "live"}:
-            raise ValueError("Set DEMOLOGIC_SERVICE_TOKEN and mode demo or live")
-        if not 1 <= self.timeout_seconds <= 60 or not 0 <= self.min_interval_seconds <= 300:
-            raise ValueError("Timeout must be 1–60 seconds; interval must be 0–300 seconds")
-        if (
-            type(self.max_attempts_per_event) is not int
-            or not 1 <= self.max_attempts_per_event <= 10
-        ):
-            raise ValueError(
-                f"Attempts per event must be 1–10; batch attempts remain limited to {MAX_JOB_ATTEMPTS}"
-            )
-        if self.summary_max_attempts not in {3, 5}:
-            raise ValueError("Summary attempts must be 3 or 5")
-        if not 1 <= self.summary_timeout_seconds <= 60:
-            raise ValueError("Summary timeout must be 1–60 seconds")
-        if self.environment not in {"unspecified", "local", "staging", "production", "test"}:
-            raise ValueError("Unsupported service environment")
         if (
             self.mode == "live"
             and not self.gemini_enabled
@@ -89,16 +76,14 @@ class Settings:
             database=Path(os.environ.get("DEMOLOGIC_DATABASE", "data/service/inference.sqlite")),
             mode=os.environ.get("DEMOLOGIC_MODE", "demo"),
             provider_key=os.environ.get("HETZNER_API_KEY", ""),
-            free_tier_confirmed=os.environ.get("DEMOLOGIC_FREE_TIER_CONFIRMED") == "true",
-            timeout_seconds=float(os.environ.get("DEMOLOGIC_TIMEOUT_SECONDS", "60")),
-            min_interval_seconds=float(os.environ.get("DEMOLOGIC_MIN_INTERVAL_SECONDS", "1")),
-            max_attempts_per_event=int(os.environ.get("DEMOLOGIC_MAX_ATTEMPTS_PER_EVENT", "3")),
+            free_tier_confirmed=env_bool("DEMOLOGIC_FREE_TIER_CONFIRMED"),
+            timeout_seconds=env_number("DEMOLOGIC_TIMEOUT_SECONDS", 60, kind=float),
+            min_interval_seconds=env_number("DEMOLOGIC_MIN_INTERVAL_SECONDS", 1, kind=float),
+            max_attempts_per_event=env_number("DEMOLOGIC_MAX_ATTEMPTS_PER_EVENT", 3),
             summary_config_id=os.environ.get("DEMOLOGIC_SUMMARY_CONFIG_ID", "hetzner-daily-v1"),
-            summary_enabled=os.environ.get("DEMOLOGIC_SUMMARY_ENABLED") == "true",
-            summary_max_attempts=int(os.environ.get("DEMOLOGIC_SUMMARY_MAX_ATTEMPTS", "3")),
-            summary_timeout_seconds=float(
-                os.environ.get("DEMOLOGIC_SUMMARY_TIMEOUT_SECONDS", "60")
-            ),
+            summary_enabled=env_bool("DEMOLOGIC_SUMMARY_ENABLED"),
+            summary_max_attempts=env_number("DEMOLOGIC_SUMMARY_MAX_ATTEMPTS", 3),
+            summary_timeout_seconds=env_number("DEMOLOGIC_SUMMARY_TIMEOUT_SECONDS", 60, kind=float),
             config_id=os.environ.get("DEMOLOGIC_CONFIG_ID", "qwen-v4-v1"),
             retained_tag_configs=tuple(
                 filter(None, os.environ.get("DEMOLOGIC_RETAINED_TAG_CONFIGS", "").split(","))
@@ -108,7 +93,7 @@ class Settings:
             ),
             environment=os.environ.get("DEMOLOGIC_ENVIRONMENT", "unspecified"),
             gemini_key=os.environ.get("GEMINI_API_KEY", ""),
-            gemini_enabled=os.environ.get("DEMOLOGIC_GEMINI_ENABLED") == "true",
+            gemini_enabled=env_bool("DEMOLOGIC_GEMINI_ENABLED"),
             paid_account=os.environ.get("DEMOLOGIC_GEMINI_ACCOUNT", ""),
             paid_run_usd=os.environ.get("DEMOLOGIC_PAID_RUN_USD", ""),
             paid_period_usd=os.environ.get("DEMOLOGIC_PAID_PERIOD_USD", ""),

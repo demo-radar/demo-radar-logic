@@ -1,5 +1,7 @@
 # DemoLogic service API
 
+For variable ownership, defaults and Compose precedence, see the [environment reference](environment.md).
+
 DemoLogic accepts one tagging request or daily-snapshot request, validates the
 configured model’s answer and saves its outcome. Demo Radar owns background
 jobs, staff decisions and publication. No service response approves event tags.
@@ -277,6 +279,7 @@ The main service components are grouped by responsibility:
 service/
 ├── app.py                   # HTTP application
 ├── lifecycle.py             # Shared resources and shutdown
+├── environment.py           # Strict boolean and finite numeric readers
 ├── tasks/
 │   ├── factory.py           # Assemble tagging, summaries and Gems
 │   └── limits.py            # Server-owned execution ceilings

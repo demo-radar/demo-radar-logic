@@ -1,5 +1,7 @@
 # Provider settings and spending
 
+For variable ownership, defaults and Compose precedence, see the [environment reference](environment.md).
+
 This feature is shipped disabled. Demo Radar chooses a default separately for
 **tagging** and **daily summaries**. DemoLogic owns the approved profiles,
 credentials, pricing and dispatch checks. Routes are unavailable; DeepL translation

@@ -2,16 +2,65 @@
 
 For variable ownership, defaults and Compose precedence, see the [environment reference](environment.md).
 
-This feature is shipped disabled. Demo Radar chooses a default separately for
-**tagging** and **daily summaries**. DemoLogic owns the approved profiles,
-credentials, pricing and dispatch checks. Routes are unavailable; DeepL translation
-remains separate. Copy-and-paste Gem controls are unchanged.
+DemoLogic can use OpenAI to suggest topic tags and prepare daily summaries for
+review. Demo Radar chooses a provider separately for each task. DemoLogic keeps
+the API keys, approved model settings, spending limits and saved results.
+DeepL translation remains separate.
+
+## Use OpenAI
+
+OpenAI profiles `openai-v4-v1` and `openai-daily-v1` use `gpt-6.1-sol`
+with low reasoning and the existing tagging guide, summary example and output
+validation. Results retain their actual provider, model and usage. The model
+has not yet been evaluated against the reviewed tagging sample.
+
+1. Configure these values in DemoLogic's private `service/.env`. Leave execution
+   disabled until the account and budgets are ready.
+
+   ```dotenv
+   OPENAI_API_KEY=
+   DEMOLOGIC_OPENAI_ENABLED=false
+   DEMOLOGIC_OPENAI_ACCOUNT=
+   DEMOLOGIC_PAID_RUN_USD=
+   DEMOLOGIC_PAID_PERIOD_USD=
+   DEMOLOGIC_PAID_ACCOUNT_USD=
+   ```
+
+2. Set a non-secret billing account label and approved positive USD limits. The
+   limits cover one run, all paid calls during a UTC day, and the account during
+   that day. They are shared with other paid providers where applicable.
+3. Set `DEMOLOGIC_OPENAI_ENABLED=true` and restart DemoLogic with the updated
+   environment. Follow the deployment procedure for the target environment.
+4. In Demo Radar's admin provider settings, choose OpenAI separately for tagging
+   and daily summaries, then save. The profiles are `openai-v4-v1` and
+   `openai-daily-v1`. Check availability and run a small check within the agreed
+   budget before using it for regular work.
+
+Demo Radar reads the available profiles from DemoLogic. It does not need the
+OpenAI API key. Enabling OpenAI makes it selectable; it does not change existing
+defaults or queued jobs. Radar's provider settings screen must also be enabled
+with `DEMOLOGIC_PROVIDER_SETTINGS_ENABLED=true` in its private `.env_ai`.
+
+OpenAI requests use the standard service tier, no tools and `store=false`.
+Admission reserves a conservative input bound based on the UTF-8 bytes of the
+complete request, plus the existing 1,024-token protocol allowance. This is
+not measured usage; returned provider usage settles the saved spending estimate.
+Inputs are capped at 200,000 reserved tokens, below the model's long-context price
+threshold. The reservation uses $2.50 per million input tokens to cover the
+published 30-minute cache-write rate and $10 per million output tokens.
+Cached-input discounts are not assumed. These are conservative estimates rather
+than invoice reconciliation. Pricing must be reviewed after 31 December 2026.
+Failures use the existing cooldown, unknown-outcome recovery and replay path.
+
+Reviewed against the [OpenAI model specification](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
+and [Chat Completions contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create).
+Model access depends on the account. Verify access and usage with a bounded live
+check when activating a new account or model.
 
 ## Ownership and changes
 
 The [shared task flow](task-execution.md#the-flow) explains admission, execution
 and replay. Provider settings add these ownership and change rules:
-
 
 Radar's PostgreSQL stores environment, settings version, old/new choices, actor
 and time. An admin save includes the version they read. A stale save returns 409;
@@ -33,10 +82,17 @@ free-account confirmation. A future model needs a catalog entry, an approved tas
 profile, compatible transport and tests before activation. Existing versioned JSON
 profiles and saved spending records retain their original identities and rates.
 
-| Task | Hetzner | Google Gemini |
-| --- | --- | --- |
-| Tagging | `qwen-v4-v1` | `gemini-v4-v1` |
-| Daily summary | `hetzner-daily-v1` | `gemini-daily-v1` |
+OpenAI and Hetzner share the tagging response check. Only the selected model or
+an explicitly approved alias is accepted. Hetzner's shortened
+`Qwen/Qwen3.6-35B-A3B` name remains accepted for the FP8 model; OpenAI requires
+the exact selected model name. Summaries use the accepted names in their pinned
+profiles. Results keep the actual returned name and usage, including failed
+model checks. A mismatch does not trigger a retry or a switch to another model.
+
+| Task | OpenAI | Google Gemini | Hetzner |
+| --- | --- | --- | --- |
+| Tagging | `openai-v4-v1` | `gemini-v4-v1` | `qwen-v4-v1` |
+| Daily summary | `openai-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
 
 The shared prompt remains `configs/summary/daily-summary-v1.json`. The older
 `daily-summary-v1` ID remains readable for saved jobs. If queued work still needs
@@ -157,3 +213,14 @@ Journal schema 3 adds spending and audit tables. Back up the journal before upgr
 Older binaries refuse this schema; roll back to a compatible image, not an older
 journal backup that would discard charges or unknown work. Retain profiles needed
 by queued jobs; use the [task guide](task-execution.md#keep-older-profiles).
+
+## Hetzner endpoint and saved profiles
+
+Hetzner's customer notice states that the experiment ends on 8 December 2026
+and Qwen will not be offered at the official product launch. Its old
+`/api/v1` URL stopped working on 10 November. Live transport now uses
+`https://inference.hetzner.com/v1/chat/completions`.
+Historical Hetzner profiles retain their bytes and fingerprints. Their old
+configured URL is accepted only as a historical identity; requests go to the
+new fixed Hetzner endpoint. This does not migrate Qwen to a different model.
+Deployment of the updated service is required to change running transport.

@@ -1,0 +1,68 @@
+{
+  "provider": "openai",
+  "model": "gpt-6.1-sol",
+  "endpoint": "https://api.openai.com/v1/chat/completions",
+  "settings": {
+    "model": "gpt-6.1-sol",
+    "max_completion_tokens": 2048,
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "daily_summary_draft",
+        "strict": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "overview": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 400
+                  },
+                  "event_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "text",
+                  "event_ids"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "limitations": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 400
+              }
+            }
+          },
+          "required": [
+            "overview",
+            "limitations"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "reasoning_effort": "low"
+  },
+  "returned_model_ids": [
+    "gpt-6.1-sol"
+  ]
+}

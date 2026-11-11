@@ -114,7 +114,12 @@ def test_restart_retains_pinned_profile_and_retired_results_still_replay(tmp_pat
     newer = replace(runtime, config_id=ALTERNATE, retained_tag_configs=("qwen-v4-v1",))
     with TestClient(create_app(newer)) as client:
         profiles = client.get("/v1/task-profiles", headers=AUTH).json()["profiles"]
-        assert {p["profile_id"] for p in profiles} == {"qwen-v4-v1", ALTERNATE, "gemini-v4-v1"}
+        assert {p["profile_id"] for p in profiles} == {
+            "qwen-v4-v1",
+            ALTERNATE,
+            "gemini-v4-v1",
+            "openai-v4-v1",
+        }
         second = request(2)
         assert client.post("/v1/tag-suggestions", json=second, headers=AUTH).status_code == 200
     with TestClient(create_app(replace(newer, retained_tag_configs=()))) as client:

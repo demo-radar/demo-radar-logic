@@ -8,6 +8,7 @@ from service.inference.results import fingerprint
 from service.persistence.journal import AdmissionError
 from service.providers.gemini import GeminiProvider
 from service.providers.hetzner import HetznerProvider
+from service.providers.openai import OpenAIProvider
 
 # Older saved jobs keep their original ID and fingerprint.
 LEGACY_CONFIG_IDS = {"daily-summary-v1": "hetzner-daily-v1"}
@@ -40,7 +41,7 @@ class SummaryConfig:
         self.example = None
         provider_profile = registration.get("provider_profile")
         if provider_profile is not None:
-            if provider_profile not in {"hetzner", "gemini"}:
+            if provider_profile not in {"hetzner", "gemini", "openai"}:
                 raise ValueError("No adapter is installed for this summary provider")
             profile = (directory / "providers" / (provider_profile + ".json")).read_bytes()
             if (
@@ -88,7 +89,10 @@ class SummaryConfig:
             or self.version != config_id
             or self.endpoint
             != {
-                "hetzner": HetznerProvider.ENDPOINT,
+                "hetzner": self.endpoint
+                if self.endpoint in HetznerProvider.CONFIG_ENDPOINTS
+                else None,
+                "openai": OpenAIProvider.ENDPOINT,
                 "gemini": GeminiProvider.endpoint_for(self.model),
             }.get(self.provider)
             or self.data["settings"]["model"] != self.model

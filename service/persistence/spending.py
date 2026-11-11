@@ -46,7 +46,11 @@ def policy(settings, config, *, input_tokens=None, output_tokens=None):
         ):
             raise AdmissionError("provider_disabled", 503)
         return None
-    if config.provider != "gemini" or not settings.gemini_enabled or not settings.gemini_key:
+    enabled, key, account = {
+        "gemini": (settings.gemini_enabled, settings.gemini_key, settings.paid_account),
+        "openai": (settings.openai_enabled, settings.openai_key, settings.openai_account),
+    }.get(config.provider, (False, "", ""))
+    if not enabled or not key:
         raise AdmissionError("provider_disabled", 503)
     try:
         limits = [
@@ -59,7 +63,7 @@ def policy(settings, config, *, input_tokens=None, output_tokens=None):
         ]
     except ValueError:
         raise AdmissionError("spending_not_configured", 503) from None
-    if not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,120}", settings.paid_account) or not all(
+    if not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,120}", account) or not all(
         0 < value <= 10**12 for value in limits
     ):
         raise AdmissionError("spending_not_configured", 503)
@@ -84,7 +88,7 @@ def policy(settings, config, *, input_tokens=None, output_tokens=None):
             raise AdmissionError("pricing_review_required", 503)
     return {
         **price,
-        "account": settings.paid_account,
+        "account": account,
         "period": today,
         "run_limit": limits[0],
         "period_limit": limits[1],

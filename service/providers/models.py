@@ -6,6 +6,7 @@ from enum import StrEnum
 
 class ModelId(StrEnum):
     QWEN = "Qwen/Qwen3.6-35B-A3B-FP8"
+    OPENAI_SOL = "gpt-6.1-sol"
     GEMINI_FLASH = "gemini-3.8-flash"
 
 
@@ -41,3 +42,18 @@ MODEL_CATALOG = {
         },
     ),
 }
+
+MODEL_CATALOG[ModelId.OPENAI_SOL] = ModelDefinition(
+    provider="openai",
+    pricing={
+        "version": "gpt-6.1-sol-standard-2026-11-11",
+        "currency": "USD",
+        "model": ModelId.OPENAI_SOL,
+        "valid_from": "2026-11-11",
+        "valid_until": "2026-12-31",
+        "input_microusd_per_token": "2.50",
+        "output_microusd_per_token": "10",
+        "maximum_input_tokens": 200000,
+        "maximum_output_tokens": 128000,
+    },
+)

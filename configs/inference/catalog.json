@@ -12,6 +12,12 @@
       "sha256": "ccdb468e3da08458e8bf439fb86bfdd17650aee0ec5248bea4a3f16677b577da",
       "provider": "gemini",
       "rubric_version": "4"
+    },
+    "openai-v4-v1": {
+      "path": "configs/inference/openai-v4-v1.json",
+      "sha256": "57b680b59437f45732acc7bd8d1eda1c2d61f6af0baeb91aabc3c8bcbd19d53d",
+      "provider": "openai",
+      "rubric_version": "4"
     }
   }
 }

@@ -14,6 +14,7 @@ from pydantic.dataclasses import dataclass
 from service.environment import SETTINGS_VALIDATION, env_bool, env_number
 from service.providers.gemini import GeminiProvider
 from service.providers.hetzner import HetznerProvider
+from service.providers.openai import OpenAIProvider
 
 
 @dataclass(frozen=True, config=SETTINGS_VALIDATION)
@@ -21,8 +22,8 @@ class Settings:
     """Runtime controls, supplied by Compose or the process environment.
 
     Demo mode returns synthetic responses without network access. Live mode
-    requires a confirmed free Hetzner account or explicitly enabled Gemini.
-    Gemini dispatch also requires configured monetary limits and an account.
+    requires a confirmed free Hetzner account or an explicitly enabled paid provider.
+    Paid dispatch also requires configured monetary limits and an account.
     The SQLite path must be persistent and shared by all local service processes.
 
     Inputs are environment variables from service/.env (loaded by Compose), or
@@ -49,6 +50,9 @@ class Settings:
     retained_summary_configs: tuple[str, ...] = ()
     gemini_key: str = field(default="", repr=False)
     gemini_enabled: bool = False
+    openai_key: str = field(default="", repr=False)
+    openai_enabled: bool = False
+    openai_account: str = ""
     paid_account: str = ""
     paid_run_usd: str = ""
     paid_period_usd: str = ""
@@ -61,6 +65,7 @@ class Settings:
         if (
             self.mode == "live"
             and not self.gemini_enabled
+            and not self.openai_enabled
             and (not self.provider_key or not self.free_tier_confirmed)
         ):
             raise ValueError(
@@ -92,6 +97,9 @@ class Settings:
                 filter(None, os.environ.get("DEMOLOGIC_RETAINED_SUMMARY_CONFIGS", "").split(","))
             ),
             environment=os.environ.get("DEMOLOGIC_ENVIRONMENT", "unspecified"),
+            openai_key=os.environ.get("OPENAI_API_KEY", ""),
+            openai_enabled=env_bool("DEMOLOGIC_OPENAI_ENABLED"),
+            openai_account=os.environ.get("DEMOLOGIC_OPENAI_ACCOUNT", ""),
             gemini_key=os.environ.get("GEMINI_API_KEY", ""),
             gemini_enabled=env_bool("DEMOLOGIC_GEMINI_ENABLED"),
             paid_account=os.environ.get("DEMOLOGIC_GEMINI_ACCOUNT", ""),
@@ -154,7 +162,8 @@ class InferenceConfig:
         ):
             raise ValueError("Configuration does not match its registered tagging profile")
         endpoints = {
-            "hetzner": HetznerProvider.ENDPOINT,
+            "hetzner": self.endpoint if self.endpoint in HetznerProvider.CONFIG_ENDPOINTS else None,
+            "openai": OpenAIProvider.ENDPOINT,
             "gemini": GeminiProvider.endpoint_for(self.model),
         }
         if self.endpoint != endpoints.get(self.provider):

@@ -681,7 +681,7 @@ def test_hetzner_adapter_rejects_unapproved_destination_before_using_credentials
 
     config = InferenceConfig(ROOT)
     config.endpoint = "https://unapproved.invalid/chat/completions"
-    with pytest.raises(ValueError, match="Unsupported Hetzner model or endpoint"):
+    with pytest.raises(ValueError, match="Unsupported provider model or endpoint"):
         HetznerProvider(None, config, "private-test-value")
 
 

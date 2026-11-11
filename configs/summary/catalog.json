@@ -41,6 +41,13 @@
       "provider_profile": "gemini",
       "provider_sha256": "8395dd09bcc163f8ca8ad917bb64a4d49699e02f27dd87e14f87f982495c4673",
       "requires_fingerprint": true
+    },
+    "openai-daily-v1": {
+      "path": "daily-summary-v1.json",
+      "sha256": "342f3f4008deb00ebca76750d10d5bb7467c435ecb8fb14e21f34930f5e539cd",
+      "provider_profile": "openai",
+      "provider_sha256": "9d66d58e53886e2adca530cab26ca82920b0ea9af8f4772118e9f9bf82fe8e6c",
+      "requires_fingerprint": true
     }
   }
 }

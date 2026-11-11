@@ -40,7 +40,12 @@ class TaskServiceFactory:
 
     def _tagging(self):
         versions = dict.fromkeys(
-            (self.runtime.config_id, *self.runtime.retained_tag_configs, "gemini-v4-v1")
+            (
+                self.runtime.config_id,
+                *self.runtime.retained_tag_configs,
+                "gemini-v4-v1",
+                "openai-v4-v1",
+            )
         )
         profiles = TaskProfiles()
         for version in versions:
@@ -78,6 +83,7 @@ class TaskServiceFactory:
                 *self.runtime.retained_summary_configs,
                 "hetzner-daily-v1",
                 "gemini-daily-v1",
+                "openai-daily-v1",
             )
         )
         for version in versions:

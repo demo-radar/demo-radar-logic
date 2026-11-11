@@ -104,6 +104,8 @@ def test_profiles_are_independent_and_disabled_without_operator_approval(tmp_pat
             ("daily-summary", "hetzner"),
             ("tagging", "gemini"),
             ("daily-summary", "gemini"),
+            ("tagging", "openai"),
+            ("daily-summary", "openai"),
         }
         assert all(not p["enabled"] for p in profiles if p["provider"] == "gemini")
         denied = client.post("/v1/tag-suggestions", json=gemini_request(), headers=AUTH)

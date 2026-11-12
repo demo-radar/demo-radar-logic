@@ -63,6 +63,7 @@ The service token is not a staff session; Demo Radar separately checks staff per
 | `GET /v1/monitoring/attempts?after=0` | Authenticated changed measurements for Grafana; never inference |
 | `GET /v1/attempts/{id}/spending` | Private reservation and charge evidence |
 | `POST /v1/attempts/{id}/spending` | Audited operator reconciliation after verified account evidence |
+| `POST /v1/attempts/{id}/spending/recover-saved-gemini` | Calculate a cost from complete saved Gemini counters and the original pricing policy; no provider call |
 | `GET /v1/attempts/{request_id}/execution` | Private saved configuration and measured phase facts |
 | `POST /v1/tag-suggestions` | One event’s topic suggestions |
 | `GET /v1/daily-summary-contract` | Summary configuration, model metadata and fingerprint |

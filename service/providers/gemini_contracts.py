@@ -25,9 +25,21 @@ class GeminiUsage(BaseModel):
         return value if type(value) is int and value >= 0 else None
 
     def normalized(self, raw):
+        thinking = self.thinking_tokens
+        # A missing counter can be inferred as zero only when all other
+        # reported counters account for the total exactly.
+        if (
+            "thoughtsTokenCount" not in raw
+            and self.prompt_tokens is not None
+            and self.output_tokens is not None
+            and self.total_tokens == self.prompt_tokens + self.output_tokens
+            and type(raw.get("toolUsePromptTokenCount", 0)) is int
+            and raw.get("toolUsePromptTokenCount", 0) == 0
+        ):
+            thinking = 0
         output = (
-            self.output_tokens + self.thinking_tokens
-            if self.output_tokens is not None and self.thinking_tokens is not None
+            self.output_tokens + thinking
+            if self.output_tokens is not None and thinking is not None
             else None
         )
         return {
@@ -35,7 +47,7 @@ class GeminiUsage(BaseModel):
             "completion_tokens": output,
             "total_tokens": self.total_tokens,
             "prompt_tokens_details": {"cached_tokens": self.cached_tokens},
-            "completion_tokens_details": {"reasoning_tokens": self.thinking_tokens},
+            "completion_tokens_details": {"reasoning_tokens": thinking},
             "gemini": raw,
         }
 

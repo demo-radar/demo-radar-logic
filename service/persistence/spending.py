@@ -221,6 +221,54 @@ def inspect(db, request_id):
     }
 
 
+def recover_gemini_usage(db, request_id):
+    """Reconcile a completed attempt from its saved Gemini counters, not an invoice."""
+    from service.inference.results import usage_counts
+    from service.providers.gemini_contracts import GeminiUsage
+
+    db.execute("BEGIN IMMEDIATE")
+    row = db.execute(
+        "SELECT s.*, a.status, a.result FROM spending s JOIN attempts a USING(request_id) WHERE s.request_id=?",
+        (request_id,),
+    ).fetchone()
+    if row is None:
+        raise AdmissionError("not_found", 404)
+    if row["charged"] is not None:
+        return inspect(db, request_id)
+    if row["status"] not in ("ok", "failed") or row["review_required"] or not row["result"]:
+        raise AdmissionError("attempt_unresolved")
+    result = json.loads(row["result"])
+    stats = result.get("statistics") or {}
+    raw = (stats.get("usage_raw") or {}).get("gemini")
+    if (
+        stats.get("provider") != "gemini"
+        or not isinstance(raw, dict)
+        or raw.get("serviceTier") != "standard"
+        or "thoughtsTokenCount" in raw
+        or stats.get("input_tokens") != raw.get("promptTokenCount")
+        or stats.get("total_tokens") != raw.get("totalTokenCount")
+    ):
+        raise AdmissionError("invalid_request", 422)
+    usage = GeminiUsage.model_validate(raw).normalized(raw)
+    result["statistics"] = {**stats, **usage_counts(usage)}
+    reconcile(db, request_id, result, row["status"])
+    updated = inspect(db, request_id)
+    if updated["charged_microusd"] is None:
+        raise AdmissionError("invalid_request", 422)
+    db.execute(
+        "INSERT INTO spending_audit(request_id,operator,reason,previous,charged,recorded_at) VALUES(?,?,?,?,?,?)",
+        (
+            request_id,
+            "saved-usage-recovery",
+            "Calculated from saved Gemini token counters and the original pricing policy; not a provider invoice.",
+            None,
+            updated["charged_microusd"],
+            datetime.now(UTC).isoformat(),
+        ),
+    )
+    return updated
+
+
 def settle(db, request_id, amount_usd, operator, reason):
     """Record verified account evidence without changing the original model result."""
     try:

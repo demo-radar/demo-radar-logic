@@ -8,6 +8,12 @@ checks profiles, calls the provider and saves results. Route execution remains
 disabled. Radar stores independent tagging and summary defaults with an audit trail.
 See [provider setup and spending](provider-settings.md) for activation requirements.
 
+If a completed Gemini request still holds a reservation, an operator can use
+the saved-usage recovery endpoint in the [service API guide](service-api.md#authentication-and-endpoints).
+It records a cost calculated from the saved token counts and original price. It
+does not change the saved answer or claim to be a provider invoice. Incomplete
+or inconsistent evidence stays reserved for review.
+
 ## The flow
 
 ```mermaid

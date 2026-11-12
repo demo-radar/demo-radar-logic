@@ -146,6 +146,94 @@ def test_native_request_and_usage_are_normalized_once(tmp_path):
 
 
 @pytest.mark.parametrize(
+    ("usage_changes", "settled"),
+    [
+        ({"totalTokenCount": 13}, True),
+        ({"totalTokenCount": 14}, False),
+        ({"totalTokenCount": 13, "thoughtsTokenCount": None}, False),
+        ({"totalTokenCount": 13, "toolUsePromptTokenCount": 1}, False),
+        ({"totalTokenCount": 13, "toolUsePromptTokenCount": False}, False),
+    ],
+)
+def test_missing_thinking_count_is_settled_only_when_totals_prove_it(
+    tmp_path, usage_changes, settled
+):
+    def response(_):
+        body = answer(["mobility"])
+        del body["usageMetadata"]["thoughtsTokenCount"]
+        body["usageMetadata"].update(usage_changes)
+        return httpx.Response(200, json=body)
+
+    app = create_app(runtime(tmp_path), transport=gemini_transport(response))
+    with TestClient(app) as client:
+        reply = client.post("/v1/tag-suggestions", json=gemini_request(), headers=AUTH)
+        assert reply.status_code == 200
+        with app.state.service.journal.connection() as db:
+            row = db.execute("SELECT * FROM spending").fetchone()
+            assert (row["charged"] is not None) is settled
+            if settled:
+                assert row["charged"] == 19
+
+
+def test_saved_gemini_usage_recovery_is_audited_and_keeps_original_result(tmp_path):
+    def response(_):
+        body = answer(["mobility"])
+        del body["usageMetadata"]["thoughtsTokenCount"]
+        body["usageMetadata"]["totalTokenCount"] = 13
+        body["usageMetadata"]["serviceTier"] = "standard"
+        return httpx.Response(200, json=body)
+
+    app = create_app(runtime(tmp_path), transport=gemini_transport(response))
+    with TestClient(app) as client:
+        assert (
+            client.post("/v1/tag-suggestions", json=gemini_request(), headers=AUTH).status_code
+            == 200
+        )
+        with app.state.service.journal.connection() as db:
+            saved = db.execute(
+                "SELECT result FROM attempts WHERE request_id='request-1'"
+            ).fetchone()[0]
+            db.execute("UPDATE spending SET charged=NULL WHERE request_id='request-1'")
+        path = "/v1/attempts/request-1/spending/recover-saved-gemini"
+        assert client.post(path).status_code == 401
+        first = client.post(path, headers=AUTH)
+        assert first.status_code == 200 and first.json()["charged_microusd"] == 19
+        assert client.post(path, headers=AUTH).json() == first.json()
+        with app.state.service.journal.connection() as db:
+            assert (
+                db.execute("SELECT result FROM attempts WHERE request_id='request-1'").fetchone()[0]
+                == saved
+            )
+            assert db.execute("SELECT COUNT(*) FROM spending_audit").fetchone()[0] == 1
+
+
+@pytest.mark.parametrize("change", ["inconsistent", "other_tier", "unknown"])
+def test_saved_gemini_usage_recovery_refuses_uncertain_evidence(tmp_path, change):
+    def response(_):
+        body = answer(["mobility"])
+        del body["usageMetadata"]["thoughtsTokenCount"]
+        body["usageMetadata"]["totalTokenCount"] = 14 if change == "inconsistent" else 13
+        body["usageMetadata"]["serviceTier"] = "priority" if change == "other_tier" else "standard"
+        return httpx.Response(200, json=body)
+
+    app = create_app(runtime(tmp_path), transport=gemini_transport(response))
+    with TestClient(app) as client:
+        assert (
+            client.post("/v1/tag-suggestions", json=gemini_request(), headers=AUTH).status_code
+            == 200
+        )
+        with app.state.service.journal.connection() as db:
+            db.execute("UPDATE spending SET charged=NULL")
+            if change == "unknown":
+                db.execute("UPDATE attempts SET status='unknown'")
+        reply = client.post("/v1/attempts/request-1/spending/recover-saved-gemini", headers=AUTH)
+        assert reply.status_code in (409, 422)
+        with app.state.service.journal.connection() as db:
+            assert db.execute("SELECT charged FROM spending").fetchone()[0] is None
+            assert db.execute("SELECT COUNT(*) FROM spending_audit").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize(
     "change",
     [
         {"finish": "MAX_TOKENS"},

@@ -252,6 +252,16 @@ async def reconcile_spending(request_id: str, body: SpendingEvidence, service: S
         return settle(db, request_id, body.amount_usd, body.operator.strip(), body.reason.strip())
 
 
+@router.post("/v1/attempts/{request_id}/spending/recover-saved-gemini", dependencies=auth)
+async def recover_saved_gemini_spending(request_id: str, service: Service):
+    """Recover a cost only when saved Gemini usage and pricing are complete."""
+    from service.persistence.locking import activity_lock
+    from service.persistence.spending import recover_gemini_usage
+
+    with activity_lock(service.journal.path, exclusive=True), service.journal.connection() as db:
+        return recover_gemini_usage(db, request_id)
+
+
 @router.get("/v1/gem-profiles", dependencies=auth, response_model=ProfileCatalog)
 async def gem_profiles(http_request: Request):
     """Read executable Gem identities without inference."""

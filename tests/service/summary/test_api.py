@@ -706,7 +706,8 @@ def test_invalid_topic_display_flags_are_rejected(tmp_path, flag):
 
 
 def test_product_sends_a_complete_example_before_the_actual_snapshot():
-    config = SummaryConfig(Path(__file__).resolve().parents[3])
+    config = SummaryConfig(Path(__file__).resolve().parents[3], "hetzner-daily-v2")
+    assert config.data["prompt_revision"] == 21
     body = config.payload(SummaryRequest.model_validate(request()).snapshot)
     messages = body["messages"]
     assert body["chat_template_kwargs"]["enable_thinking"] is False
@@ -718,6 +719,9 @@ def test_product_sends_a_complete_example_before_the_actual_snapshot():
     )
     assert "assignments" not in example_answer
     assert len(example_answer["topics"]) == 4
+    assert len(set(example_answer["overview"][0]["event_ids"])) == 2
+    assert "aus Sicht der Organisatoren" in example_answer["topics"][1]["text"]
+    assert "Verdrängung von Mietern" in example_answer["topics"][1]["text"]
     assert json.loads(messages[-1]["content"])["available_event_ids"] == ["d001"]
     assert (
         len(

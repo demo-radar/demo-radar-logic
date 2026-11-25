@@ -60,9 +60,9 @@ team to change the application or model adapter without merging those concerns.
 - Hosted LLMs improved agreement in the recorded comparisons but still omitted
   topics and depended on context and labeling policy. Review remains necessary.
 - An explicit provider interface avoids a second orchestration framework for
-  a single sequential inference task. Hetzner and disabled Gemini profiles have
-  separate adapters and shared admission/spending checks;
-  the current service does not promise arbitrary-model compatibility.
+  sequential inference. The approved provider adapters share admission and
+  spending checks. The [provider guide](provider-settings.md) lists the
+  available profiles and their activation requirements.
 - Exact recurring-title/place matches and explicitly approved reuse belong in
   Demo Radar. Similarity alone is insufficient permission to apply tags to another event.
 

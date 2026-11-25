@@ -199,10 +199,8 @@ thinking disabled, search off, JSON output and a 4,096-token cap. Learned model
 knowledge is permitted. Only the title and instructions are model context;
 review notes, earlier events and historical reference labels are not appended.
 
-Hetzner live mode requires private settings and explicit free-tier confirmation.
-Gemini has separately approved profiles and is disabled until operator activation.
-See [provider settings and spending](provider-settings.md) for the monetary guard,
-pricing revision, keys and release checklist. There is no automatic fallback.
+See [provider settings and spending](provider-settings.md) for current profiles,
+activation, credentials and pricing. Profile selection has no automatic fallback.
 
 The service admits one provider attempt at a time across processes sharing the
 same journal. Tagging has hard batch ceilings of 40 distinct event IDs and 30
@@ -217,24 +215,9 @@ later retries. A failed or unknown attempt is not free allowance for another cal
 
 ## What happens if the connection drops?
 
-```mermaid
-flowchart TD
-    Lost[Caller loses the reply] --> Lookup[Read the original saved request ID]
-    Lookup --> Known{Outcome saved?}
-    Known -->|Yes| Reuse[Recover original result and usage]
-    Known -->|No or unknown| Pause[Stop the batch and pause new inference]
-    Pause --> Inspect[Operator inspects recovery state]
-    Inspect --> Saved[Saved answer resolves the outcome]
-    Inspect --> Close[Eligible finalized timeout closed with reason and acknowledgement]
-    Saved --> Resume[Resume other work when no blockers remain]
-    Close --> Resume
-```
-
-Demo Radar performs at most three bounded lookups, with five-second intervals and
-five-second lookup deadlines. A saved unknown result stops those checks immediately.
-Lookups never call the provider. Stop prevents dispatch of another event while an
-admitted request drains and saves. A restarted worker first resolves its original
-request ID; it does not resend it as new work.
+See the [task execution recovery flow](task-execution.md#recover-a-lost-reply)
+for caller retries, Stop and worker restarts. Use the original request ID to
+look up saved work.
 
 A finalized unknown timeout may be closed after at least 15 minutes, with a
 trimmed operator identity/reason and `accept_unknown_outcome: true`. The server
@@ -269,8 +252,9 @@ rejected. See [summary design](plan/daily-summary.md).
 The [worked example](../configs/summary/examples/news-brief-v1.json) is sent as
 separate input/output messages before the actual snapshot. The service validates
 supporting identities, structured output and word limits; it cannot prove that
-prose is accurate or natural. Staff review remains necessary. German generation
-and DeepL translation are separate stages owned by the service and Radar respectively.
+prose is accurate or natural. Responses carry `requires_staff_review: true`.
+DemoLogic generates German drafts. Radar owns DeepL translation, review and
+publication policy.
 
 ## Code map and checks
 

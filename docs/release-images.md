@@ -96,17 +96,12 @@ Publication does not deploy. PRs run CI without package-write credentials;
 `main` runs shared CI once through the release workflow, then publishes only
 if all jobs pass. This avoids a second independent CI run on the same push.
 
-Choose the digest from a successful release artifact. Follow the service's
-maintenance and journal-backup procedure before replacing its container. Keep
-the current project name, network overrides, runtime settings and journal
-volume. Set `DEMOLOGIC_IMAGE` to the approved digest in `service/.env`.
-
-Using the existing Compose invocation, run `pull demologic`, then
-`up -d --no-build --no-deps --pull never --wait demologic`. Check readiness
-before resuming admission. The Demo Radar operator README provides the `logic`
-shell helper with the production network override. Never use `down -v` or
-start a second journal when deploying. Retain the previous digest and its
-compatible configuration for a manual rollback.
+Use the [image deployment helper below](#image-only-staging-promotion) for either
+environment. It checks the existing journal and saves a backup before replacing
+the container. Follow the [acceptance sequence below](#image-only-staging-promotion)
+to check the paused service, resume admission and verify readiness.
+Retain the previous digest and compatible configuration for
+[rollback](task-execution.md#upgrade-and-rollback).
 
 ## Image-only staging promotion
 
@@ -154,9 +149,14 @@ Health checks confirm that the saved maintenance state survived. No provider
 requests are made. Backups and previous image records are private under
 `data/releases`; they must not be committed or uploaded as public CI artifacts.
 
-Admission remains paused for operator acceptance. Resume through authenticated
-`DELETE /v1/maintenance` and verify `/health/ready` only after checking the
-combined application. If backup fails after stopping the old container, it
+Admission remains paused for operator acceptance. The deployment helper checks
+the authenticated `/health/ready` response for `maintenance: true`,
+`drained: true`, and zero unresolved attempts. HTTP 503 is expected while
+maintenance is active. Check the combined application and profile catalog
+while paused. Then resume with authenticated `DELETE /v1/maintenance` and
+require HTTP 200 with `ready: true` from authenticated `/health/ready`.
+
+If backup fails after stopping the old container, it
 stays stopped; fix the backup before safely restarting that same container.
 A failed health check leaves the record for manual recovery. Retain previous
 digests and compatible configuration; do not delete volumes to roll back.

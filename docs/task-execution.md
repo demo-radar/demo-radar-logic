@@ -36,6 +36,27 @@ original settings; changing profiles does not reset classifier or summary retry 
 change.** Use the [recovery procedure](service-api.md#what-happens-if-the-connection-drops)
 before continuing. Saved suggestions still need review before publication.
 
+## Recover a lost reply
+
+```mermaid
+flowchart TD
+    Lost[Caller loses the reply] --> Lookup[Read the original saved request ID]
+    Lookup --> Known{Outcome saved?}
+    Known -->|Yes| Reuse[Recover original result and usage]
+    Known -->|No or unknown| Pause[Stop the batch and pause new inference]
+    Pause --> Inspect[Operator inspects recovery state]
+    Inspect --> Saved[Saved answer resolves the outcome]
+    Inspect --> Close[Eligible finalized timeout closed with reason and acknowledgement]
+    Saved --> Resume[Resume other work when no blockers remain]
+    Close --> Resume
+```
+
+Demo Radar performs at most three bounded lookups, with five-second intervals and
+five-second lookup deadlines. A saved unknown result stops those checks immediately.
+Lookups never call the provider. Stop prevents dispatch of another event while an
+admitted request drains and saves. A restarted worker first resolves its original
+request ID; it does not resend it as new work.
+
 ## Inspect the service
 
 The [API reference](service-api.md#authentication-and-endpoints) lists the
@@ -109,8 +130,10 @@ For an upgrade:
 1. Pause new jobs, finish active calls and resolve unknown outcomes.
 2. Back up the private journal and required profile assets.
 3. Test with synthetic inputs and retain profiles needed by saved jobs.
-4. Upgrade Logic and restart both the Radar API and its separate worker with
-   matching code; check catalog/readiness before resuming Radar.
+4. Follow the [service image deployment procedure](release-images.md#manual-deployment).
+   Check the paused, drained state and catalog against the installed Radar
+   release. Resume admission, then verify authenticated readiness.
+   Use Radar’s own release procedure if a Radar update is also required.
 
 For rollback, pause and drain again, preserve the current journal, and restore
 a compatible service image with its approved profile files. Keep the current request

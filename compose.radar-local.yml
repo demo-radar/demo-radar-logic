@@ -1,6 +1,12 @@
 # Apply after the Demo Radar checkout's docker-compose.yml for local development.
 services:
   backend:
+    # Run the reviewed image even if the checkout is changed later.
+    volumes: !reset []
+    command: [sh, backend/start.sh]
     environment:
       DEMOLOGIC_BASE_URL: ${DEMOLOGIC_BASE_URL:-http://host.docker.internal:8005}
       DEMOLOGIC_SERVICE_TOKEN: ${DEMOLOGIC_SERVICE_TOKEN:?Set the shared DemoLogic service token}
+  frontend:
+    volumes: !reset []
+    command: [npm, run, dev, --, --host, 0.0.0.0]

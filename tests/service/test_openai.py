@@ -18,7 +18,7 @@ from tests.service.test_api import AUTH, ROOT, request, settings
 SOL_62_TAGGING = "openai-sol-6-2-v4-v1"
 SOL_62_SUMMARY = "openai-sol-6-2-daily-v1"
 OPENAI_TAGGING_MODELS = [
-    ("openai-v4-v1", ModelId.OPENAI_SOL),
+    ("openai-v4-v1", ModelId.OPENAI_SOL_61),
     (SOL_62_TAGGING, ModelId.OPENAI_SOL_62),
 ]
 
@@ -49,7 +49,7 @@ def tag_request(profile_id="openai-v4-v1"):
     return {**request(), "model_id": profile_id}
 
 
-def answer(content=None, *, model=ModelId.OPENAI_SOL):
+def answer(content=None, *, model=ModelId.OPENAI_SOL_61):
     return {
         "model": model,
         "id": "synthetic-completion",
@@ -104,7 +104,7 @@ def test_tagging_replays_without_another_paid_call(tmp_path, profile_id, model):
 
 @pytest.mark.parametrize(
     ("profile_id", "model"),
-    [("openai-daily-v1", ModelId.OPENAI_SOL), (SOL_62_SUMMARY, ModelId.OPENAI_SOL_62)],
+    [("openai-daily-v1", ModelId.OPENAI_SOL_61), (SOL_62_SUMMARY, ModelId.OPENAI_SOL_62)],
 )
 def test_summary_keeps_the_shared_example_and_schema(tmp_path, profile_id, model):
     config = SummaryConfig(ROOT, profile_id)
@@ -216,7 +216,7 @@ def test_failed_calls_do_not_retry_or_switch_vendor(tmp_path, outcome, profile_i
             body["choices"][0]["finish_reason"] = "length"
         else:
             body["model"] = (
-                ModelId.OPENAI_SOL if model == ModelId.OPENAI_SOL_62 else ModelId.OPENAI_SOL_62
+                ModelId.OPENAI_SOL_61 if model == ModelId.OPENAI_SOL_62 else ModelId.OPENAI_SOL_62
             )
         return httpx.Response(200, json=body)
 

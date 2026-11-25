@@ -15,7 +15,7 @@ from tests.service.test_api import AUTH, ROOT, completion, request, settings
 
 @pytest.fixture
 def runtime(tmp_path, monkeypatch):
-    price = MODEL_CATALOG[ModelId.OPENAI_SOL].pricing
+    price = MODEL_CATALOG[ModelId.OPENAI_SOL_61].pricing
     monkeypatch.setitem(price, "valid_from", "2000-01-01")
     monkeypatch.setitem(price, "valid_until", "2100-12-31")
     return settings(
@@ -64,9 +64,9 @@ def response_body(task, returned_model):
 @pytest.mark.parametrize(
     ("provider", "returned_model"),
     [
-        ("hetzner", ModelId.QWEN),
+        ("hetzner", ModelId.QWEN_36),
         ("hetzner", "Qwen/Qwen3.6-35B-A3B"),
-        ("openai", ModelId.OPENAI_SOL),
+        ("openai", ModelId.OPENAI_SOL_61),
     ],
 )
 def test_approved_models_keep_actual_identity_and_replay(runtime, task, provider, returned_model):
@@ -105,7 +105,7 @@ def test_unapproved_models_save_failure_and_usage_without_retry(
 ):
     endpoint, data, _ = task_request(task, provider)
     if returned_model == "other-provider":
-        returned_model = ModelId.OPENAI_SOL if provider == "hetzner" else "Qwen/Qwen3.6-35B-A3B"
+        returned_model = ModelId.OPENAI_SOL_61 if provider == "hetzner" else "Qwen/Qwen3.6-35B-A3B"
     body = response_body(task, returned_model)
     calls = []
 

@@ -160,8 +160,8 @@ def test_paid_gemini_gem_uses_system_context_and_shared_spending_controls(tmp_pa
     from service.providers.models import MODEL_CATALOG, ModelId
     from tests.service.test_gemini import answer, gemini_transport, runtime
 
-    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing, "valid_from", "2000-01-01")
-    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing, "valid_until", "2100-12-31")
+    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing, "valid_from", "2000-01-01")
+    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing, "valid_until", "2100-12-31")
     replies = []
     expected = {
         "external_id": CONTEXT["external_id"],
@@ -352,8 +352,8 @@ def test_fresh_paid_manual_send_keeps_reserved_unknown_usage_under_period_cap(
     from service.providers.models import MODEL_CATALOG, ModelId
     from tests.service.test_gemini import answer, gemini_transport, runtime
 
-    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing, "valid_from", "2000-01-01")
-    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing, "valid_until", "2100-12-31")
+    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing, "valid_from", "2000-01-01")
+    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing, "valid_until", "2100-12-31")
     calls = []
     reply = {
         "external_id": CONTEXT["external_id"],

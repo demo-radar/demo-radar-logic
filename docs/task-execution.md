@@ -131,7 +131,8 @@ For an upgrade:
 2. Back up the private journal and required profile assets.
 3. Test with synthetic inputs and retain profiles needed by saved jobs.
 4. Follow the [service image deployment procedure](release-images.md#manual-deployment).
-   Verify catalog and readiness against the installed Radar release before resuming.
+   Check the paused, drained state and catalog against the installed Radar
+   release. Resume admission, then verify authenticated readiness.
    Use Radar’s own release procedure if a Radar update is also required.
 
 For rollback, pause and drain again, preserve the current journal, and restore

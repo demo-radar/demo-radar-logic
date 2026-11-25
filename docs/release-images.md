@@ -98,7 +98,8 @@ if all jobs pass. This avoids a second independent CI run on the same push.
 
 Use the [image deployment helper below](#image-only-staging-promotion) for either
 environment. It checks the existing journal and saves a backup before replacing
-the container. After replacement, verify readiness before resuming admission.
+the container. Follow the [acceptance sequence below](#image-only-staging-promotion)
+to check the paused service, resume admission and verify readiness.
 Retain the previous digest and compatible configuration for
 [rollback](task-execution.md#upgrade-and-rollback).
 
@@ -148,9 +149,14 @@ Health checks confirm that the saved maintenance state survived. No provider
 requests are made. Backups and previous image records are private under
 `data/releases`; they must not be committed or uploaded as public CI artifacts.
 
-Admission remains paused for operator acceptance. Resume through authenticated
-`DELETE /v1/maintenance` and verify `/health/ready` only after checking the
-combined application. If backup fails after stopping the old container, it
+Admission remains paused for operator acceptance. The deployment helper checks
+the authenticated `/health/ready` response for `maintenance: true`,
+`drained: true`, and zero unresolved attempts. HTTP 503 is expected while
+maintenance is active. Check the combined application and profile catalog
+while paused. Then resume with authenticated `DELETE /v1/maintenance` and
+require HTTP 200 with `ready: true` from authenticated `/health/ready`.
+
+If backup fails after stopping the old container, it
 stays stopped; fix the backup before safely restarting that same container.
 A failed health check leaves the record for manual recovery. Retain previous
 digests and compatible configuration; do not delete volumes to roll back.

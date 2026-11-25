@@ -48,6 +48,26 @@
       "provider_profile": "openai",
       "provider_sha256": "9d66d58e53886e2adca530cab26ca82920b0ea9af8f4772118e9f9bf82fe8e6c",
       "requires_fingerprint": true
+    },
+    "hetzner-daily-v2": {
+      "path": "daily-summary-v2.json",
+      "sha256": "635aa4b5ee7f45ab77aae34cc9aca155222e33522d3f91c069d1169523c08d02",
+      "requires_fingerprint": true,
+      "provider_profile": "hetzner"
+    },
+    "gemini-daily-v2": {
+      "path": "daily-summary-v2.json",
+      "sha256": "635aa4b5ee7f45ab77aae34cc9aca155222e33522d3f91c069d1169523c08d02",
+      "provider_profile": "gemini",
+      "provider_sha256": "8395dd09bcc163f8ca8ad917bb64a4d49699e02f27dd87e14f87f982495c4673",
+      "requires_fingerprint": true
+    },
+    "openai-daily-v2": {
+      "path": "daily-summary-v2.json",
+      "sha256": "635aa4b5ee7f45ab77aae34cc9aca155222e33522d3f91c069d1169523c08d02",
+      "provider_profile": "openai",
+      "provider_sha256": "9d66d58e53886e2adca530cab26ca82920b0ea9af8f4772118e9f9bf82fe8e6c",
+      "requires_fingerprint": true
     }
   }
 }

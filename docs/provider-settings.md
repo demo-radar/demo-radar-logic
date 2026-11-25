@@ -92,9 +92,15 @@ model checks. A mismatch does not trigger a retry or a switch to another model.
 | Task | OpenAI | Google Gemini | Hetzner |
 | --- | --- | --- | --- |
 | Tagging | `openai-v4-v1` | `gemini-v4-v1` | `qwen-v4-v1` |
-| Daily summary | `openai-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
+| Daily summary (editorial revision 21) | `openai-daily-v2` | `gemini-daily-v2` | `hetzner-daily-v2` |
+| Daily summary (editorial revision 20) | `openai-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
 
-The shared prompt remains `configs/summary/daily-summary-v1.json`. The older
+The v2 profiles use `configs/summary/daily-summary-v2.json` and a new worked
+example. The lead cites the registrations that support it, and the focus is
+optional when it would repeat the briefing. Attribution stays explicit for
+organizers’ claims before English translation. Select the v2 profile for
+new runs through the existing settings. Existing v1 profiles keep their
+original prompt and fingerprint. The older
 `daily-summary-v1` ID remains readable for saved jobs. If queued work still needs
 that ID, include it in `DEMOLOGIC_RETAINED_SUMMARY_CONFIGS` until the work finishes;
 do not rename saved requests or rewrite their history.

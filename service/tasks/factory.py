@@ -84,6 +84,9 @@ class TaskServiceFactory:
                 "hetzner-daily-v1",
                 "gemini-daily-v1",
                 "openai-daily-v1",
+                "hetzner-daily-v2",
+                "gemini-daily-v2",
+                "openai-daily-v2",
             )
         )
         for version in versions:

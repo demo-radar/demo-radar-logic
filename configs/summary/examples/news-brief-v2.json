@@ -1,0 +1,106 @@
+{
+  "version": "news-brief-v2",
+  "kind": "worked-example",
+  "note": "Illustrative registrations and newsroom answer. The lead cites two different events. Organizers’ claims remain attributed. Only the final user snapshot supplies facts for a real answer.",
+  "input": {
+    "example_only": true,
+    "language": "de",
+    "events": [
+      {
+        "id": "EXAMPLE-CLIMATE",
+        "title": "Öffentliche Foto- und Protestaktion: Energiewende  verteidigen statt fossil abhängig bleiben (vom 08.10. bis 10.10.2026 - täglich)"
+      },
+      {
+        "id": "EXAMPLE-HOUSING",
+        "title": "Gegen Mietverdrängung durch sogenannte energetische und Luxussanierung, für Denkmalpflege und Instandhaltung"
+      },
+      {
+        "id": "EXAMPLE-IRAN",
+        "title": "Sitzstreik und Mahnwache für Menschenrechte im Iran, sowie für eine Neubewertung der diplomatischen Beziehungen   (vom 02.10. bis 30.12.2026 - täglich)"
+      },
+      {
+        "id": "EXAMPLE-ANIMALS",
+        "title": "LasstDieKuhLos - Anbindehaltung und anderer Qualhaltungen abschaffen!"
+      },
+      {
+        "id": "EXAMPLE-MOBILITY",
+        "title": "Verkehrssicherheit von Kindern & Jugendlichen, Klimaschutz und Mobilitätswende"
+      },
+      {
+        "id": "EXAMPLE-MARCH",
+        "title": "Demonstrationszug zum Internationalen Tag gegen Gewalt an Frauen"
+      },
+      {
+        "id": "EXAMPLE-VIGIL",
+        "title": "Mahnwache gegen Gewalt an Frauen und Gedenken an die Opfer von Femiziden"
+      }
+    ],
+    "available_event_ids": [
+      "EXAMPLE-CLIMATE",
+      "EXAMPLE-HOUSING",
+      "EXAMPLE-IRAN",
+      "EXAMPLE-ANIMALS",
+      "EXAMPLE-MOBILITY",
+      "EXAMPLE-MARCH",
+      "EXAMPLE-VIGIL"
+    ]
+  },
+  "output": {
+    "overview": [
+      {
+        "text": "Ein Demonstrationszug und eine Mahnwache wenden sich gegen Gewalt an Frauen.",
+        "event_ids": [
+          "EXAMPLE-MARCH",
+          "EXAMPLE-VIGIL"
+        ]
+      }
+    ],
+    "topics": [
+      {
+        "label": "Klima",
+        "text": "Eine Foto- und Protestaktion setzt sich für die Energiewende ein und wendet sich gegen fossile Abhängigkeit.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-CLIMATE"
+        ]
+      },
+      {
+        "label": "Wohnen",
+        "text": "Ein Protest richtet sich gegen die aus Sicht der Organisatoren drohende Verdrängung von Mietern durch energetische und luxuriöse Sanierungen.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-HOUSING"
+        ]
+      },
+      {
+        "label": "Menschenrechte",
+        "text": "Eine Mahnwache fordert Menschenrechte im Iran und eine Neubewertung der diplomatischen Beziehungen.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-IRAN"
+        ]
+      },
+      {
+        "label": "Gedenken",
+        "text": "Die Mahnwache erinnert an die Opfer von Femiziden.",
+        "include_in_briefing": true,
+        "event_ids": [
+          "EXAMPLE-VIGIL"
+        ]
+      }
+    ],
+    "highlight": {
+      "title": "Gegen das Anbinden von Rindern",
+      "text": "„LasstDieKuhLos“ fordert: Rinder sollen nicht angebunden gehalten werden.",
+      "event_ids": [
+        "EXAMPLE-ANIMALS"
+      ]
+    },
+    "limitations": [
+      "Eine Auswahl angemeldeter Anliegen."
+    ]
+  },
+  "protected_phrases": [
+    "LasstDieKuhLos"
+  ]
+}

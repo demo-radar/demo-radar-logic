@@ -18,6 +18,12 @@
       "sha256": "57b680b59437f45732acc7bd8d1eda1c2d61f6af0baeb91aabc3c8bcbd19d53d",
       "provider": "openai",
       "rubric_version": "4"
+    },
+    "openai-sol-6-2-v4-v1": {
+      "path": "configs/inference/openai-sol-6-2-v4-v1.json",
+      "sha256": "ad684feda79271f15a78e64a692d2b559f2ab206432e9bc135df082cb9153249",
+      "provider": "openai",
+      "rubric_version": "4"
     }
   }
 }

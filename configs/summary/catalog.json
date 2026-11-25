@@ -68,6 +68,13 @@
       "provider_profile": "openai",
       "provider_sha256": "9d66d58e53886e2adca530cab26ca82920b0ea9af8f4772118e9f9bf82fe8e6c",
       "requires_fingerprint": true
+    },
+    "openai-sol-6-2-daily-v1": {
+      "path": "daily-summary-v1.json",
+      "sha256": "342f3f4008deb00ebca76750d10d5bb7467c435ecb8fb14e21f34930f5e539cd",
+      "provider_profile": "openai-sol-6-2",
+      "provider_sha256": "4f9d96d4c2e677c17e811055cb0c1cc82e22265fe8ea50ede53a57673fddaa00",
+      "requires_fingerprint": true
     }
   }
 }

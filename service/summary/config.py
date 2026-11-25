@@ -41,7 +41,7 @@ class SummaryConfig:
         self.example = None
         provider_profile = registration.get("provider_profile")
         if provider_profile is not None:
-            if provider_profile not in {"hetzner", "gemini", "openai"}:
+            if provider_profile not in {"hetzner", "gemini", "openai", "openai-sol-6-2"}:
                 raise ValueError("No adapter is installed for this summary provider")
             profile = (directory / "providers" / (provider_profile + ".json")).read_bytes()
             if (

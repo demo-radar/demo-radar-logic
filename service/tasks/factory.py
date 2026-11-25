@@ -45,6 +45,7 @@ class TaskServiceFactory:
                 *self.runtime.retained_tag_configs,
                 "gemini-v4-v1",
                 "openai-v4-v1",
+                "openai-sol-6-2-v4-v1",
             )
         )
         profiles = TaskProfiles()
@@ -84,6 +85,7 @@ class TaskServiceFactory:
                 "hetzner-daily-v1",
                 "gemini-daily-v1",
                 "openai-daily-v1",
+                "openai-sol-6-2-daily-v1",
                 "hetzner-daily-v2",
                 "gemini-daily-v2",
                 "openai-daily-v2",

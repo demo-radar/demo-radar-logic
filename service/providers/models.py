@@ -5,9 +5,10 @@ from enum import StrEnum
 
 
 class ModelId(StrEnum):
-    QWEN = "Qwen/Qwen3.6-35B-A3B-FP8"
-    OPENAI_SOL = "gpt-6.1-sol"
-    GEMINI_FLASH = "gemini-3.8-flash"
+    QWEN_36 = "Qwen/Qwen3.6-35B-A3B-FP8"
+    OPENAI_SOL_61 = "gpt-6.1-sol"
+    OPENAI_SOL_62 = "gpt-6.2-sol"
+    GEMINI_FLASH_38 = "gemini-3.8-flash"
 
 
 @dataclass(frozen=True)
@@ -22,17 +23,17 @@ class ModelDefinition:
 
 MODEL_CATALOG = {
     # Hetzner execution still requires the operator's free-account confirmation.
-    ModelId.QWEN: ModelDefinition(
+    ModelId.QWEN_36: ModelDefinition(
         provider="hetzner",
         requires_free_account=True,
         returned_model_aliases=("Qwen/Qwen3.6-35B-A3B",),
     ),
-    ModelId.GEMINI_FLASH: ModelDefinition(
+    ModelId.GEMINI_FLASH_38: ModelDefinition(
         provider="gemini",
         pricing={
             "version": "gemini-3.8-flash-standard-2026-10-18",
             "currency": "USD",
-            "model": ModelId.GEMINI_FLASH,
+            "model": ModelId.GEMINI_FLASH_38,
             "valid_from": "2026-10-18",
             "valid_until": "2026-12-31",
             "input_microusd_per_token": "0.75",
@@ -43,13 +44,28 @@ MODEL_CATALOG = {
     ),
 }
 
-MODEL_CATALOG[ModelId.OPENAI_SOL] = ModelDefinition(
+MODEL_CATALOG[ModelId.OPENAI_SOL_61] = ModelDefinition(
     provider="openai",
     pricing={
         "version": "gpt-6.1-sol-standard-2026-11-11",
         "currency": "USD",
-        "model": ModelId.OPENAI_SOL,
+        "model": ModelId.OPENAI_SOL_61,
         "valid_from": "2026-11-11",
+        "valid_until": "2026-12-31",
+        "input_microusd_per_token": "2.50",
+        "output_microusd_per_token": "10",
+        "maximum_input_tokens": 200000,
+        "maximum_output_tokens": 128000,
+    },
+)
+
+MODEL_CATALOG[ModelId.OPENAI_SOL_62] = ModelDefinition(
+    provider="openai",
+    pricing={
+        "version": "gpt-6.2-sol-standard-2026-11-25",
+        "currency": "USD",
+        "model": ModelId.OPENAI_SOL_62,
+        "valid_from": "2026-11-25",
         "valid_until": "2026-12-31",
         "input_microusd_per_token": "2.50",
         "output_microusd_per_token": "10",

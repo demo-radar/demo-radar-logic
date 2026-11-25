@@ -9,10 +9,13 @@ DeepL translation remains separate.
 
 ## Use OpenAI
 
-OpenAI profiles `openai-v4-v1` and `openai-daily-v1` use `gpt-6.1-sol`
-with low reasoning and the existing tagging guide, summary example and output
-validation. Results retain their actual provider, model and usage. The model
-has not yet been evaluated against the reviewed tagging sample.
+Select `openai-sol-6-2-v4-v1` for tagging and `openai-sol-6-2-daily-v1` for
+daily summaries to use `gpt-6.2-sol`. They use low reasoning, the v4 tagging
+rubric and the editorial revision 20 summary prompt. The OpenAI profile for
+editorial revision 21, `openai-daily-v2`, uses Sol 6.1. The older
+`openai-v4-v1` and `openai-daily-v1` profiles retain their original IDs and
+fingerprints for saved settings, queued jobs and replay. Results retain the
+actual provider, model and usage.
 
 1. Configure these values in DemoLogic's private `service/.env`. Leave execution
    disabled until the account and budgets are ready.
@@ -31,10 +34,10 @@ has not yet been evaluated against the reviewed tagging sample.
    that day. They are shared with other paid providers where applicable.
 3. Set `DEMOLOGIC_OPENAI_ENABLED=true` and restart DemoLogic with the updated
    environment. Follow the deployment procedure for the target environment.
-4. In Demo Radar's admin provider settings, choose OpenAI separately for tagging
-   and daily summaries, then save. The profiles are `openai-v4-v1` and
-   `openai-daily-v1`. Check availability and run a small check within the agreed
-   budget before using it for regular work.
+4. In Demo Radar's admin provider settings, select a profile for each task and
+   check the model ID below each selector before saving. Check model access for
+   the environment's API project and run a small check within the agreed
+   budget before regular use.
 
 Demo Radar reads the available profiles from DemoLogic. It does not need the
 OpenAI API key. Enabling OpenAI makes it selectable; it does not change existing
@@ -52,8 +55,10 @@ Cached-input discounts are not assumed. These are conservative estimates rather
 than invoice reconciliation. Pricing must be reviewed after 31 December 2026.
 Failures use the existing cooldown, unknown-outcome recovery and replay path.
 
-Reviewed against the [OpenAI model specification](https://developers.openai.com/api/docs/models/gpt-6.1-sol)
-and [Chat Completions contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create).
+Reviewed against the OpenAI model specifications for
+[Sol 6.1](https://developers.openai.com/api/docs/models/gpt-6.1-sol) and
+[Sol 6.2](https://developers.openai.com/api/docs/models/gpt-6.2-sol), and the
+[Chat Completions contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create).
 Model access depends on the account. Verify access and usage with a bounded live
 check when activating a new account or model.
 
@@ -91,9 +96,9 @@ model checks. A mismatch does not trigger a retry or a switch to another model.
 
 | Task | OpenAI | Google Gemini | Hetzner |
 | --- | --- | --- | --- |
-| Tagging | `openai-v4-v1` | `gemini-v4-v1` | `qwen-v4-v1` |
+| Tagging | `openai-v4-v1`, `openai-sol-6-2-v4-v1` | `gemini-v4-v1` | `qwen-v4-v1` |
 | Daily summary (editorial revision 21) | `openai-daily-v2` | `gemini-daily-v2` | `hetzner-daily-v2` |
-| Daily summary (editorial revision 20) | `openai-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
+| Daily summary (editorial revision 20) | `openai-daily-v1`, `openai-sol-6-2-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
 
 The v2 profiles use `configs/summary/daily-summary-v2.json` and a new worked
 example. The lead cites the registrations that support it, and the focus is

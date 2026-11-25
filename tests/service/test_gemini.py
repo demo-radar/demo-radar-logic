@@ -23,8 +23,8 @@ ROOT = Path(__file__).resolve().parents[2]
 @pytest.fixture(autouse=True)
 def reviewed_price(monkeypatch):
     # Clock-independent fixtures; the expiration test exercises the real cutoff rule.
-    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing, "valid_from", "2000-01-01")
-    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing, "valid_until", "2100-12-31")
+    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing, "valid_from", "2000-01-01")
+    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing, "valid_until", "2100-12-31")
 
 
 def runtime(tmp_path, **changes):
@@ -59,7 +59,7 @@ def gemini_transport(handler):
 
 def answer(tags=None, *, content=None, finish="STOP", usage=True):
     body = {
-        "modelVersion": ModelId.GEMINI_FLASH,
+        "modelVersion": ModelId.GEMINI_FLASH_38,
         "responseId": "synthetic-provider-id",
         "candidates": [
             {
@@ -305,7 +305,7 @@ def test_exact_limit_missing_usage_and_restart_share_daily_allowance(tmp_path):
 
 
 def test_expired_price_fails_closed(tmp_path, monkeypatch):
-    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing, "valid_until", "2001-01-01")
+    monkeypatch.setitem(MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing, "valid_until", "2001-01-01")
     with pytest.raises(AdmissionError, match=None) as exc:
         spending.policy(runtime(tmp_path), InferenceConfig(ROOT, "gemini-v4-v1"))
     assert exc.value.code == "pricing_review_required"
@@ -803,7 +803,7 @@ def test_second_registered_gemini_uses_its_own_model_endpoint_and_pricing(tmp_pa
 
     name = "synthetic-gemini-second"
     pricing = {
-        **MODEL_CATALOG[ModelId.GEMINI_FLASH].pricing,
+        **MODEL_CATALOG[ModelId.GEMINI_FLASH_38].pricing,
         "version": "synthetic-second-price",
         "model": name,
         "input_microusd_per_token": "1.00",

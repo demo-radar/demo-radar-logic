@@ -1,0 +1,19 @@
+{
+  "provider": "openai",
+  "model": "gpt-6.2-sol",
+  "endpoint": "https://api.openai.com/v1/chat/completions",
+  "settings": {
+    "model": "gpt-6.2-sol",
+    "response_format": {
+      "type": "json_schema",
+      "json_schema": {
+        "name": "daily_summary_draft",
+        "strict": true
+      }
+    },
+    "reasoning_effort": "low"
+  },
+  "returned_model_ids": [
+    "gpt-6.2-sol"
+  ]
+}

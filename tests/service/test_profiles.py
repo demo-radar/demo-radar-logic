@@ -119,6 +119,7 @@ def test_restart_retains_pinned_profile_and_retired_results_still_replay(tmp_pat
             ALTERNATE,
             "gemini-v4-v1",
             "openai-v4-v1",
+            "openai-sol-6-2-v4-v1",
         }
         second = request(2)
         assert client.post("/v1/tag-suggestions", json=second, headers=AUTH).status_code == 200

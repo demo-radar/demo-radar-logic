@@ -7,7 +7,9 @@ Start with the route that matches your question.
 | How does DemoLogic help maintain Demo Radar? | [DemoLogic in practice](demo-radar-in-practice.md) |
 | What can I run without data or API keys? | [Public synthetic workflow](reproducibility.md) |
 | How are the application and AI service connected? | [Current architecture](architecture.md) and [historical decisions](adr/0001-capstone-backoffice-ml-vs-llm.md) |
-| What does the service accept and return? | [API and recovery](service-api.md) |
+| How do tasks run, recover or remain compatible during an upgrade? | [Task execution](task-execution.md) |
+| What does the service accept and return? | [Service API](service-api.md) |
+| How do I operate a release or configure the service? | [Release images](release-images.md) and [environment reference](environment.md) |
 | How were the models evaluated? | [Methodology and limits](methodology.md) |
 | Which experiment should I open? | [Notebook index](../notebooks/README.md) |
 | Where are the aggregate findings? | [Results index](results/README.md) |

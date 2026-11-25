@@ -92,7 +92,8 @@ The public examples reproduce software behavior, not those private scores.
 
 - [Documentation index](docs/README.md): architecture, API and research reading paths.
 - [Notebook index](notebooks/README.md): each experiment’s purpose and required inputs.
-- [Service API](docs/service-api.md): configuration, request contracts and safe recovery.
+- [Task execution](docs/task-execution.md) for profiles, recovery and upgrades.
+- [Service API](docs/service-api.md) for endpoints and request contracts.
 - [Service file tree](docs/service-api.md#code-map-and-checks): task assembly, providers and journal components.
 - [Contributing](CONTRIBUTING.md): setup, checks and publication rules.
 - [Security reporting](SECURITY.md): how to report a concern privately.

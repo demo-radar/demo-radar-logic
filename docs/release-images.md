@@ -96,17 +96,11 @@ Publication does not deploy. PRs run CI without package-write credentials;
 `main` runs shared CI once through the release workflow, then publishes only
 if all jobs pass. This avoids a second independent CI run on the same push.
 
-Choose the digest from a successful release artifact. Follow the service's
-maintenance and journal-backup procedure before replacing its container. Keep
-the current project name, network overrides, runtime settings and journal
-volume. Set `DEMOLOGIC_IMAGE` to the approved digest in `service/.env`.
-
-Using the existing Compose invocation, run `pull demologic`, then
-`up -d --no-build --no-deps --pull never --wait demologic`. Check readiness
-before resuming admission. The Demo Radar operator README provides the `logic`
-shell helper with the production network override. Never use `down -v` or
-start a second journal when deploying. Retain the previous digest and its
-compatible configuration for a manual rollback.
+Use the [image deployment helper below](#image-only-staging-promotion) for either
+environment. It checks the existing journal and saves a backup before replacing
+the container. After replacement, verify readiness before resuming admission.
+Retain the previous digest and compatible configuration for
+[rollback](task-execution.md#upgrade-and-rollback).
 
 ## Image-only staging promotion
 

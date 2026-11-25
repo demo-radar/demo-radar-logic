@@ -10,11 +10,12 @@ DeepL translation remains separate.
 ## Use OpenAI
 
 Select `openai-sol-6-2-v4-v1` for tagging and `openai-sol-6-2-daily-v1` for
-daily summaries to use `gpt-6.2-sol`. The prompts, low reasoning and output
-checks are the same as for Sol 6.1. The older `openai-v4-v1` and
-`openai-daily-v1` profiles retain their original IDs and fingerprints for
-saved settings, queued jobs and replay. Results retain the actual provider,
-model and usage.
+daily summaries to use `gpt-6.2-sol`. They use low reasoning, the v4 tagging
+rubric and the editorial revision 20 summary prompt. The OpenAI profile for
+editorial revision 21, `openai-daily-v2`, uses Sol 6.1. The older
+`openai-v4-v1` and `openai-daily-v1` profiles retain their original IDs and
+fingerprints for saved settings, queued jobs and replay. Results retain the
+actual provider, model and usage.
 
 1. Configure these values in DemoLogic's private `service/.env`. Leave execution
    disabled until the account and budgets are ready.
@@ -96,9 +97,15 @@ model checks. A mismatch does not trigger a retry or a switch to another model.
 | Task | OpenAI | Google Gemini | Hetzner |
 | --- | --- | --- | --- |
 | Tagging | `openai-v4-v1`, `openai-sol-6-2-v4-v1` | `gemini-v4-v1` | `qwen-v4-v1` |
-| Daily summary | `openai-daily-v1`, `openai-sol-6-2-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
+| Daily summary (editorial revision 21) | `openai-daily-v2` | `gemini-daily-v2` | `hetzner-daily-v2` |
+| Daily summary (editorial revision 20) | `openai-daily-v1`, `openai-sol-6-2-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
 
-The shared prompt remains `configs/summary/daily-summary-v1.json`. The older
+The v2 profiles use `configs/summary/daily-summary-v2.json` and a new worked
+example. The lead cites the registrations that support it, and the focus is
+optional when it would repeat the briefing. Attribution stays explicit for
+organizers’ claims before English translation. Select the v2 profile for
+new runs through the existing settings. Existing v1 profiles keep their
+original prompt and fingerprint. The older
 `daily-summary-v1` ID remains readable for saved jobs. If queued work still needs
 that ID, include it in `DEMOLOGIC_RETAINED_SUMMARY_CONFIGS` until the work finishes;
 do not rename saved requests or rewrite their history.

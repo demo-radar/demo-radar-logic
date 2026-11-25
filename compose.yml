@@ -3,9 +3,9 @@ services:
     image: ${DEMOLOGIC_IMAGE:-demologic:local}
     build: .
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${DEMOLOGIC_PORT:-8000}:8000"
     environment:
-      DEMOLOGIC_SERVICE_TOKEN: ${DEMOLOGIC_SERVICE_TOKEN:?Use --env-file service/.env with a private service token}
+      DEMOLOGIC_SERVICE_TOKEN: ${DEMOLOGIC_SERVICE_TOKEN:?Set the private service token in the process environment or selected env file}
       DEMOLOGIC_SUMMARY_CONFIG_ID: ${DEMOLOGIC_SUMMARY_CONFIG_ID:-hetzner-daily-v1}
       DEMOLOGIC_SUMMARY_MAX_ATTEMPTS: ${DEMOLOGIC_SUMMARY_MAX_ATTEMPTS:-3}
       DEMOLOGIC_SUMMARY_ENABLED: ${DEMOLOGIC_SUMMARY_ENABLED:-false}

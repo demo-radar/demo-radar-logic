@@ -1,0 +1,6 @@
+# Apply after the Demo Radar checkout's docker-compose.yml for local development.
+services:
+  backend:
+    environment:
+      DEMOLOGIC_BASE_URL: ${DEMOLOGIC_BASE_URL:-http://host.docker.internal:8005}
+      DEMOLOGIC_SERVICE_TOKEN: ${DEMOLOGIC_SERVICE_TOKEN:?Set the shared DemoLogic service token}

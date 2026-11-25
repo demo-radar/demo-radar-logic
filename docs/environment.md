@@ -11,7 +11,8 @@ Compose reads `service/.env` only when selected with `--env-file service/.env`.
 Shell values override that file; `compose.yml` forwards only its listed service
 variables. Python reads its process environment. No private file is read by the
 settings loader. `compose.images.yml` changes the image/build source only, using
-the same environment forwarding for staging and production.
+the same environment forwarding for staging and production. For local startup
+with credentials supplied by Bitwarden, see the [local setup](local-bitwarden.md).
 
 Booleans accept `true`/`false`, ignoring case and surrounding whitespace. Empty
 or unrecognised values fail explicitly. Numeric settings must be finite and

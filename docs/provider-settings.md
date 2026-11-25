@@ -9,11 +9,12 @@ DeepL translation remains separate.
 
 ## Use OpenAI
 
-OpenAI profiles `openai-v4-v1` and `openai-daily-v1` use `gpt-6.1-sol`.
-For a tagging pilot, select `openai-sol-6-2-v4-v1` to use `gpt-6.2-sol` with the
-same v4 rubric, low reasoning and two-tag validation. Existing selections and
-saved jobs keep their profile ID and fingerprint. Results retain the actual
-provider, model and usage.
+Select `openai-sol-6-2-v4-v1` for tagging and `openai-sol-6-2-daily-v1` for
+daily summaries to use `gpt-6.2-sol`. The prompts, low reasoning and output
+checks are the same as for Sol 6.1. The older `openai-v4-v1` and
+`openai-daily-v1` profiles retain their original IDs and fingerprints for
+saved settings, queued jobs and replay. Results retain the actual provider,
+model and usage.
 
 1. Configure these values in DemoLogic's private `service/.env`. Leave execution
    disabled until the account and budgets are ready.
@@ -32,10 +33,10 @@ provider, model and usage.
    that day. They are shared with other paid providers where applicable.
 3. Set `DEMOLOGIC_OPENAI_ENABLED=true` and restart DemoLogic with the updated
    environment. Follow the deployment procedure for the target environment.
-4. In Demo Radar's admin provider settings, select a tagging profile and check
-   the model ID below the selector before saving. Use `openai-daily-v1` for
-   OpenAI daily summaries. Check model access for the environment's API project
-   and run a small check within the agreed budget before regular use.
+4. In Demo Radar's admin provider settings, select a profile for each task and
+   check the model ID below each selector before saving. Check model access for
+   the environment's API project and run a small check within the agreed
+   budget before regular use.
 
 Demo Radar reads the available profiles from DemoLogic. It does not need the
 OpenAI API key. Enabling OpenAI makes it selectable; it does not change existing
@@ -95,7 +96,7 @@ model checks. A mismatch does not trigger a retry or a switch to another model.
 | Task | OpenAI | Google Gemini | Hetzner |
 | --- | --- | --- | --- |
 | Tagging | `openai-v4-v1`, `openai-sol-6-2-v4-v1` | `gemini-v4-v1` | `qwen-v4-v1` |
-| Daily summary | `openai-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
+| Daily summary | `openai-daily-v1`, `openai-sol-6-2-daily-v1` | `gemini-daily-v1` | `hetzner-daily-v1` |
 
 The shared prompt remains `configs/summary/daily-summary-v1.json`. The older
 `daily-summary-v1` ID remains readable for saved jobs. If queued work still needs

@@ -15,6 +15,7 @@ from tests.service.summary.test_api import request as summary_request
 from tests.service.test_api import AUTH, ROOT, request, settings
 
 SOL_62_TAGGING = "openai-sol-6-2-v4-v1"
+SOL_62_SUMMARY = "openai-sol-6-2-daily-v1"
 OPENAI_TAGGING_MODELS = [
     ("openai-v4-v1", ModelId.OPENAI_SOL),
     (SOL_62_TAGGING, ModelId.OPENAI_SOL_62),
@@ -97,8 +98,15 @@ def test_tagging_replays_without_another_paid_call(tmp_path, profile_id, model):
             assert saved["reserved"] >= saved["charged"] == 75
 
 
-def test_summary_keeps_the_shared_example_and_schema(tmp_path):
-    config = SummaryConfig(ROOT, "openai-daily-v1")
+@pytest.mark.parametrize(
+    ("profile_id", "model"),
+    [("openai-daily-v1", ModelId.OPENAI_SOL), (SOL_62_SUMMARY, ModelId.OPENAI_SOL_62)],
+)
+def test_summary_keeps_the_shared_example_and_schema(tmp_path, profile_id, model):
+    config = SummaryConfig(ROOT, profile_id)
+    legacy = SummaryConfig(ROOT, "openai-daily-v1")
+    assert legacy.sha256 == "13b1bf2cac49b9f9769ef85b17a6ac3e7ab8c1b4e5d0c5607e057e16df20de20"
+    assert config.model == model
     tagging = InferenceConfig(ROOT, SOL_62_TAGGING)
     data = summary_request()
     data.update(model_id=config.version, config_sha256=config.sha256)
@@ -111,18 +119,20 @@ def test_summary_keeps_the_shared_example_and_schema(tmp_path):
 
     def respond(req):
         payload = json.loads(req.content)
-        assert payload["model"] == ModelId.OPENAI_SOL
+        assert payload["model"] == model
+        assert payload["reasoning_effort"] == "low" and payload["store"] is False
         assert any(message["role"] == "assistant" for message in payload["messages"])
         assert payload["response_format"]["type"] == "json_schema"
-        return httpx.Response(200, json=answer(draft))
+        return httpx.Response(200, json=answer(draft, model=model))
 
     with TestClient(
         create_app(runtime(tmp_path), transport=httpx.MockTransport(respond))
     ) as client:
         profiles = client.get("/v1/task-profiles", headers=AUTH).json()["profiles"]
-        assert [(p["task"], p["profile_id"]) for p in profiles if p["model"] == tagging.model] == [
-            ("tagging", tagging.version)
-        ]
+        assert {(p["task"], p["profile_id"]) for p in profiles if p["model"] == tagging.model} == {
+            ("tagging", tagging.version),
+            ("daily-summary", SOL_62_SUMMARY),
+        }
         denied = client.post(
             "/v1/daily-summary-drafts",
             headers=AUTH,
@@ -132,6 +142,8 @@ def test_summary_keeps_the_shared_example_and_schema(tmp_path):
         reply = client.post("/v1/daily-summary-drafts", headers=AUTH, json=data)
         assert reply.status_code == 200, reply.text
         assert reply.json()["statistics"]["provider"] == "openai"
+        assert reply.json()["statistics"]["returned_model"] == model
+        assert reply.json()["config_sha256"] == config.sha256
 
 
 @pytest.mark.parametrize(

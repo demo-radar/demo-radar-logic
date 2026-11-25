@@ -43,7 +43,7 @@ def body(root=ROOT):
 def test_copy_and_send_share_messages_and_preview_has_no_side_effects(tmp_path):
     app = live_app(tmp_path, lambda request: pytest.fail("Preview must not contact a provider"))
     with TestClient(app) as client:
-        for version in ("qwen-v4-v1", "gemini-v4-v1"):
+        for version in ("qwen-v4-v1", "gemini-v4-v1", "openai-sol-6-2-v4-v1"):
             base = InferenceConfig(ROOT, version)
             config = GemFactory(ROOT).config(base)
             request = {"profile_id": version, "profile_sha256": base.sha256, "context": CONTEXT}

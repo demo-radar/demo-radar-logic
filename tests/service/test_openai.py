@@ -11,6 +11,7 @@ from service.config import InferenceConfig
 from service.providers.hetzner import HetznerProvider
 from service.providers.models import MODEL_CATALOG, ModelId
 from service.summary.config import SummaryConfig
+from service.summary.contracts import DailySnapshot
 from tests.service.summary.test_api import request as summary_request
 from tests.service.test_api import AUTH, ROOT, request, settings
 
@@ -66,7 +67,10 @@ def answer(content=None, *, model=ModelId.OPENAI_SOL):
 def test_tagging_replays_without_another_paid_call(tmp_path, profile_id, model):
     calls = []
     config = InferenceConfig(ROOT, profile_id)
+    legacy = InferenceConfig(ROOT, "openai-v4-v1")
     data = tag_request(profile_id)
+    title = data["event"]["title"]
+    assert config.payload(title) == {**legacy.payload(title), "model": model}
     data["execution"] = {
         "task": "tagging",
         "origin": "manual_api",
@@ -109,10 +113,19 @@ def test_summary_keeps_the_shared_example_and_schema(tmp_path, profile_id, model
     assert config.model == model
     tagging = InferenceConfig(ROOT, SOL_62_TAGGING)
     data = summary_request()
+    snapshot = DailySnapshot.model_validate(data["snapshot"])
+    assert config.payload(snapshot) == {**legacy.payload(snapshot), "model": model}
     data.update(model_id=config.version, config_sha256=config.sha256)
     draft = {
         "overview": [{"text": "Eine Aktion fordert sichere Radwege.", "event_ids": ["d001"]}],
-        "topics": [{"label": "Mobilität", "text": "Sichere Radwege.", "event_ids": ["d001"]}],
+        "topics": [
+            {
+                "label": "Mobilität",
+                "text": "Sichere Radwege.",
+                "event_ids": ["d001"],
+                "include_in_briefing": True,
+            }
+        ],
         "highlight": None,
         "limitations": ["Nur angemeldete Versammlungen."],
     }
@@ -122,7 +135,14 @@ def test_summary_keeps_the_shared_example_and_schema(tmp_path, profile_id, model
         assert payload["model"] == model
         assert payload["reasoning_effort"] == "low" and payload["store"] is False
         assert any(message["role"] == "assistant" for message in payload["messages"])
-        assert payload["response_format"]["type"] == "json_schema"
+        assert payload["max_completion_tokens"] == 8192
+        output = payload["response_format"]
+        assert output["type"] == "json_schema" and output["json_schema"]["strict"]
+        properties = output["json_schema"]["schema"]["properties"]
+        assert set(properties) == {"overview", "topics", "highlight", "limitations"}
+        topic = properties["topics"]["items"]
+        assert "include_in_briefing" in topic["required"]
+        assert topic["properties"]["event_ids"]["items"]["enum"] == ["d001"]
         return httpx.Response(200, json=answer(draft, model=model))
 
     with TestClient(

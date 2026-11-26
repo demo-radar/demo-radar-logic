@@ -231,6 +231,15 @@ class SpendingEvidence(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 
+@router.get("/v1/spending/status", dependencies=auth)
+def spending_status(service: Service):
+    """Read the shared allowance and warning without contacting any provider."""
+    from service.persistence.spending import daily_status
+
+    with service.journal.connection() as db:
+        return {"spending": daily_status(db, service.settings)}
+
+
 @router.get("/v1/attempts/{request_id}/spending", dependencies=auth)
 async def spending_evidence(request_id: str, service: Service):
     """Read the reservation and reconciliation; never contact the provider."""

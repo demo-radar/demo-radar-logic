@@ -23,7 +23,7 @@ MESSAGES = {
     "provider_disabled": "This provider is disabled. An operator must approve activation.",
     "spending_not_configured": "Paid execution requires approved run, daily and account limits.",
     "pricing_review_required": "The provider pricing needs an operator review before another call.",
-    "spending_limit": "The shared spending allowance cannot cover another call. No inference was admitted.",
+    "spending_limit": "The next paid AI request would exceed a spending limit. That request was skipped before generation.",
     "job_configuration_mismatch": "This job already uses a different execution profile. Keep its original settings.",
     "unsupported_task_profile": "This task/profile combination is unavailable. Keep the saved job and check compatible service versions.",
     "recovery_inflight": "A local inference call is still running. Wait for it to finish before recovery.",

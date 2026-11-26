@@ -55,6 +55,7 @@ The complete fresh-install template is `service/.env.example`.
 | `DEMOLOGIC_PAID_RUN_USD` | empty | Approved ceiling per logical run. |
 | `DEMOLOGIC_PAID_PERIOD_USD` | empty | Shared UTC-day ceiling. |
 | `DEMOLOGIC_PAID_ACCOUNT_USD` | empty | Account UTC-day ceiling. |
+| `DEMOLOGIC_PAID_WARNING_USD` | empty | Optional shared UTC-day warning below the configured daily ceiling. |
 | `DEMOLOGIC_IMAGE` | `demologic:local` | Compose-only image selection. Image deployment override requires an approved digest. |
 
 Paid limits remain exact USD strings, not floats. Missing credentials, approved

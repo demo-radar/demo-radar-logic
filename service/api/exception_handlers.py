@@ -38,6 +38,8 @@ async def rejected(_, exc):
     """Confirm a refused start; never make that claim about a save failure."""
     headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else {}
     content = {"error": error_detail(exc.code, exc.status, exc.retry_after or 0)}
+    if exc.budget_limit is not None:
+        content["error"]["budget_limit"] = exc.budget_limit
     # Journal.finish can raise this after provider inference already happened.
     if exc.code != "attempt_already_finalized":
         content["inference_admitted"] = False

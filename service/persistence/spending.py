@@ -31,6 +31,37 @@ def cost(input_tokens, output_tokens, price):
     )
 
 
+def daily_status(db, settings):
+    """Return the shared UTC-day warning and effective allowance without provider calls."""
+    if settings.mode != "live" or not (settings.gemini_enabled or settings.openai_enabled):
+        return None
+    try:
+        daily_limit = money(settings.paid_period_usd)
+    except ValueError:
+        return None
+    if not 0 < daily_limit <= 10**12:
+        return None
+    try:
+        warning = money(settings.paid_warning_usd)
+    except ValueError:
+        warning = None
+    if warning is not None and not 0 < warning < daily_limit:
+        warning = None
+    used, saved_limit = db.execute(
+        "SELECT COALESCE(SUM(COALESCE(charged, reserved)), 0), "
+        "MIN(json_extract(policy, '$.period_limit')) "
+        "FROM spending WHERE period=? OR charged IS NULL",
+        (datetime.now(UTC).date().isoformat(),),
+    ).fetchone()
+    if saved_limit is not None:
+        daily_limit = min(daily_limit, saved_limit)
+    return {
+        "used_microusd": used,
+        "warning_microusd": warning,
+        "daily_limit_microusd": daily_limit,
+    }
+
+
 def policy(settings, config, *, input_tokens=None, output_tokens=None):
     """Return a complete operator-approved policy, or refuse before admission."""
     if settings.mode != "live":
@@ -131,9 +162,10 @@ def reserve(db, request, approved, *, summary_allowance=None):
         "WHERE s.period=? OR s.job_id=? OR s.charged IS NULL OR e.allowance_key=?",
         (approved["period"], request.job_id, summary_allowance),
     ).fetchall()
-    for name, subset in (
+    for name, scope, subset in (
         (
             "run_limit",
+            "run",
             [
                 row
                 for row in rows
@@ -144,6 +176,7 @@ def reserve(db, request, approved, *, summary_allowance=None):
         ),
         (
             "period_limit",
+            "daily",
             [
                 row
                 for row in rows
@@ -152,6 +185,7 @@ def reserve(db, request, approved, *, summary_allowance=None):
         ),
         (
             "account_limit",
+            "account",
             [
                 row
                 for row in rows
@@ -164,7 +198,9 @@ def reserve(db, request, approved, *, summary_allowance=None):
         ceiling = min([approved[name], *[json.loads(row["policy"])[name] for row in subset]])
         used = sum(row["reserved"] if row["charged"] is None else row["charged"] for row in subset)
         if used + approved["reservation"] > ceiling:
-            raise AdmissionError("spending_limit", 429)
+            raise AdmissionError(
+                "spending_limit", 429, budget_limit={"scope": scope, "limit_microusd": ceiling}
+            )
     db.execute(
         "INSERT INTO spending(request_id,job_id,account,period,reserved,charged,policy) VALUES(?,?,?,?,?,NULL,?)",
         (

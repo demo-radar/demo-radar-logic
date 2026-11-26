@@ -192,6 +192,18 @@ day; confirmed charges reset out of the daily allowance at midnight. Run allowan
 do not reset. Restarting, changing profiles/accounts or closing an unknown answer
 cannot erase spending history. Explicit retries reserve again.
 
+For the $0.49 warning and $2 shared hard cap, set
+`DEMOLOGIC_PAID_WARNING_USD=0.49` and `DEMOLOGIC_PAID_PERIOD_USD=2.00`.
+The warning uses the same confirmed charges and outstanding reservations as
+daily admission. DemoLogic checks each paid generation against the remaining
+run, provider-account and shared daily allowances. A refusal reports the
+applicable scope and limit in `error.budget_limit`.
+
+The authenticated `GET /v1/spending/status` returns aggregate amounts and the
+effective shared ceiling, including any lower saved allowance that still
+applies. The warning threshold is optional. A fully used shared ceiling can
+still be shown in Radar Support when the advisory warning is absent.
+
 These are **single-journal controls**, not a distributed billing system. Use one
 persistent journal per paid account; other apps or hosts using that account are
 outside this ledger. Do not use account aliases or another journal to raise a cap.

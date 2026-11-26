@@ -564,7 +564,7 @@ def test_unknown_reservation_carries_over_midnight_but_known_charges_reset(tmp_p
     profile = InferenceConfig(ROOT, "gemini-v4-v1")
     approved = spending.policy(config, profile, input_tokens=378496, output_tokens=4096)
     assert approved["reservation"] == 300000
-    next_config = replace(config, paid_period_usd="2.00", paid_warning_usd="0.49")
+    next_config = replace(config, paid_period_usd="10.00", paid_warning_usd="2.00")
     tomorrow = spending.policy(next_config, profile)
     data = TagRequest.model_validate(gemini_request())
     journal.begin(data, "first", "first-event", 0, spending=approved)
@@ -573,7 +573,7 @@ def test_unknown_reservation_carries_over_midnight_but_known_charges_reset(tmp_p
         db.execute("UPDATE spending SET period='2000-01-01'")
         assert spending.daily_status(db, next_config) == {
             "used_microusd": 300000,
-            "warning_microusd": 490000,
+            "warning_microusd": 2000000,
             "daily_limit_microusd": 300000,
         }
         with pytest.raises(AdmissionError) as exc:
@@ -581,7 +581,7 @@ def test_unknown_reservation_carries_over_midnight_but_known_charges_reset(tmp_p
         assert exc.value.code == "spending_limit"
         assert exc.value.budget_limit == {"scope": "daily", "limit_microusd": 300000}
         db.execute("UPDATE spending SET charged=27")
-        assert spending.daily_status(db, next_config)["daily_limit_microusd"] == 2000000
+        assert spending.daily_status(db, next_config)["daily_limit_microusd"] == 10000000
         # No real second call: this checks allowance calculation in a rolled-back transaction.
         db.execute(
             "INSERT INTO attempts VALUES('request-2','i','e','event','job','ok','{}',200,'2000-01-01')"

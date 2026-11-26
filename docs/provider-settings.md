@@ -24,14 +24,10 @@ actual provider, model and usage.
    OPENAI_API_KEY=
    DEMOLOGIC_OPENAI_ENABLED=false
    DEMOLOGIC_OPENAI_ACCOUNT=
-   DEMOLOGIC_PAID_RUN_USD=
-   DEMOLOGIC_PAID_PERIOD_USD=
-   DEMOLOGIC_PAID_ACCOUNT_USD=
    ```
 
-2. Set a non-secret billing account label and approved positive USD limits. The
-   limits cover one run, all paid calls during a UTC day, and the account during
-   that day. They are shared with other paid providers where applicable.
+2. Set a non-secret billing account label and the
+   [approved spending limits](#configure-spending-limits).
 3. Set `DEMOLOGIC_OPENAI_ENABLED=true` and restart DemoLogic with the updated
    environment. Follow the deployment procedure for the target environment.
 4. In Demo Radar's admin provider settings, select a profile for each task and
@@ -59,9 +55,6 @@ Reviewed against the OpenAI model specifications for
 [Sol 6.1](https://developers.openai.com/api/docs/models/gpt-6.1-sol) and
 [Sol 6.2](https://developers.openai.com/api/docs/models/gpt-6.2-sol), and the
 [Chat Completions contract](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create).
-Model access depends on the account. Verify access and usage with a bounded live
-check when activating a new account or model.
-
 ## Ownership and changes
 
 The [shared task flow](task-execution.md#the-flow) explains admission, execution
@@ -134,18 +127,15 @@ Gemini live execution additionally requires the following **Logic-only** setting
 
 - `GEMINI_API_KEY` and `DEMOLOGIC_GEMINI_ENABLED=true`.
 - `DEMOLOGIC_GEMINI_ACCOUNT`: a non-secret billing-account label.
-- Approved positive USD amounts in `DEMOLOGIC_PAID_RUN_USD`,
-  `DEMOLOGIC_PAID_PERIOD_USD`, and `DEMOLOGIC_PAID_ACCOUNT_USD`.
+- The [approved spending limits](#configure-spending-limits).
 
-For the production release, set these values in production's private `service/.env`.
-Use production-approved limits and the matching account key; do not copy local test
-budgets. Enabling Gemini makes it selectable without changing the current defaults.
+Set these values in the target environment's private `service/.env`. Enabling
+Gemini makes it selectable without changing the current defaults.
 After the tested combined release, verify its status in Support's AI provider
 settings before choosing it for tagging or summaries.
 
-No monetary amounts are supplied by default. Missing/invalid limits, account,
-credentials or expired prices refuse before provider HTTP. Insufficient allowance
-refuses generation after the read-only token count.
+Missing or invalid limits, account labels, credentials, or current prices block
+paid admission. Insufficient allowance blocks generation after token counting.
 Hetzner still requires its key and explicit free-account confirmation. Neither a
 browser nor an individual request can change prices, ceilings or destinations.
 Keep credentials in Logic's private `service/.env`; never send them through Radar.
@@ -154,6 +144,19 @@ Keep credentials in Logic's private `service/.env`; never send them through Rada
 pass offline integration/E2E; obtain operator approval of account, prices and limits;
 then run a bounded live check as part of the combined feature release. Do not enable
 one paid task early because its adapter tests passed.
+
+## Configure spending limits
+
+The [service environment example](../service/.env.example) lists the approved
+$2 advisory warning and the $10 shared daily, per-run and per-account caps.
+Apply its four spending settings to the target environment's private
+`service/.env` before recreating DemoLogic. Paid providers start disabled in the
+example. Deployments that leave those variables unset have no runtime budget
+defaults.
+
+Lower saved limits remain in effect for their original allowance. Settled
+amounts from a lower UTC-day allowance age out at 00:00 UTC. Outstanding
+reservations and saved run limits retain their original protections.
 
 ## How money is counted
 
@@ -192,12 +195,11 @@ day; confirmed charges reset out of the daily allowance at midnight. Run allowan
 do not reset. Restarting, changing profiles/accounts or closing an unknown answer
 cannot erase spending history. Explicit retries reserve again.
 
-For the $0.49 warning and $2 shared hard cap, set
-`DEMOLOGIC_PAID_WARNING_USD=0.49` and `DEMOLOGIC_PAID_PERIOD_USD=2.00`.
 The warning uses the same confirmed charges and outstanding reservations as
-daily admission. DemoLogic checks each paid generation against the remaining
-run, provider-account and shared daily allowances. A refusal reports the
-applicable scope and limit in `error.budget_limit`.
+daily admission. Radar rounds the amount displayed in the warning up to a whole
+dollar. DemoLogic uses the exact amounts when checking the remaining run,
+provider-account and shared daily allowances. A refusal reports the applicable
+scope and limit in `error.budget_limit`.
 
 The authenticated `GET /v1/spending/status` returns aggregate amounts and the
 effective shared ceiling, including any lower saved allowance that still

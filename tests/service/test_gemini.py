@@ -276,6 +276,17 @@ def test_paid_refusals_happen_before_generation_and_reservation(tmp_path, field,
     with TestClient(app) as client:
         result = client.post("/v1/tag-suggestions", json=gemini_request(), headers=AUTH).json()
         assert result["error"]["code"] == code and result["inference_admitted"] is False
+        if code == "spending_limit":
+            scope = {
+                "paid_run_usd": "run",
+                "paid_period_usd": "daily",
+                "paid_account_usd": "account",
+            }[field]
+            assert result["error"]["budget_limit"] == {
+                "scope": scope,
+                "limit_microusd": spending.money(value),
+            }
+            assert "That request was skipped before generation." in result["error"]["message"]
         assert not calls
         with app.state.service.journal.connection() as db:
             assert db.execute("SELECT COUNT(*) FROM attempts").fetchone()[0] == 0
@@ -431,6 +442,10 @@ def test_daily_spending_warning_allows_calls_until_the_hard_limit(tmp_path):
             assert status["used_microusd"] == 16136 * number > status["warning_microusd"]
         blocked = client.post("/v1/tag-suggestions", headers=AUTH, json=gemini_request(3))
         assert blocked.status_code == 429 and blocked.json()["error"]["code"] == "spending_limit"
+        assert blocked.json()["error"]["budget_limit"] == {
+            "scope": "daily",
+            "limit_microusd": 33000,
+        }
         assert len(calls) == 2
 
     # A restart does not increase the effective spending limit for today's entries.
@@ -544,19 +559,29 @@ def test_atomic_reservations_cannot_overspend_concurrently(tmp_path):
 def test_unknown_reservation_carries_over_midnight_but_known_charges_reset(tmp_path):
     from service.contracts import TagRequest
 
-    config = replace(runtime(tmp_path), paid_period_usd="1.032192")
+    config = replace(runtime(tmp_path), paid_period_usd="0.30")
     journal = Journal(config.database)
-    approved = spending.policy(config, InferenceConfig(ROOT, "gemini-v4-v1"))
+    profile = InferenceConfig(ROOT, "gemini-v4-v1")
+    approved = spending.policy(config, profile, input_tokens=378496, output_tokens=4096)
+    assert approved["reservation"] == 300000
+    next_config = replace(config, paid_period_usd="2.00", paid_warning_usd="0.49")
+    tomorrow = spending.policy(next_config, profile)
     data = TagRequest.model_validate(gemini_request())
     journal.begin(data, "first", "first-event", 0, spending=approved)
     # Simulate a completed answer with unknown usage from the previous UTC period.
     with journal.connection() as db:
         db.execute("UPDATE spending SET period='2000-01-01'")
-        tomorrow = {**approved, "period": "2100-01-01"}
+        assert spending.daily_status(db, next_config) == {
+            "used_microusd": 300000,
+            "warning_microusd": 490000,
+            "daily_limit_microusd": 300000,
+        }
         with pytest.raises(AdmissionError) as exc:
             spending.reserve(db, TagRequest.model_validate(gemini_request(2)), tomorrow)
         assert exc.value.code == "spending_limit"
+        assert exc.value.budget_limit == {"scope": "daily", "limit_microusd": 300000}
         db.execute("UPDATE spending SET charged=27")
+        assert spending.daily_status(db, next_config)["daily_limit_microusd"] == 2000000
         # No real second call: this checks allowance calculation in a rolled-back transaction.
         db.execute(
             "INSERT INTO attempts VALUES('request-2','i','e','event','job','ok','{}',200,'2000-01-01')"

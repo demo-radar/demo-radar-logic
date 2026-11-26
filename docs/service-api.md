@@ -203,10 +203,10 @@ See [provider settings and spending](provider-settings.md) for current profiles,
 activation, credentials and pricing. Profile selection has no automatic fallback.
 
 The service admits one provider attempt at a time across processes sharing the
-same journal. Tagging has hard batch ceilings of 40 distinct event IDs and 30
-attempts, and a configurable persistent per-event-input attempt allowance
-(default three). A deployed Radar batch may be more conservative: five events
-and one attempt. Requests cannot override the service’s limits.
+same journal. Tagging allows up to 40 distinct event IDs and 40 attempts per
+batch, including retries. The default per-event-input allowance is three
+attempts and persists across batches. Existing batches keep their saved ceiling.
+Demo Radar can apply stricter limits.
 
 Provider cooldowns, maintenance and attempt counts survive restart. A total live
 deadline is at most 60 seconds, alongside bounded I/O and response size. Each

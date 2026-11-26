@@ -192,12 +192,26 @@ day; confirmed charges reset out of the daily allowance at midnight. Run allowan
 do not reset. Restarting, changing profiles/accounts or closing an unknown answer
 cannot erase spending history. Explicit retries reserve again.
 
-For the $0.49 warning and $2 shared hard cap, set
-`DEMOLOGIC_PAID_WARNING_USD=0.49` and `DEMOLOGIC_PAID_PERIOD_USD=2.00`.
+For the $2 warning and $10 shared hard cap, set these amounts in the
+environment's private `service/.env` before recreating DemoLogic:
+
+```dotenv
+DEMOLOGIC_PAID_WARNING_USD=2.00
+DEMOLOGIC_PAID_PERIOD_USD=10.00
+DEMOLOGIC_PAID_RUN_USD=10.00
+DEMOLOGIC_PAID_ACCOUNT_USD=10.00
+```
+
+Updating the example does not change a deployed service. Lower saved limits
+remain in effect for their original allowance. A settled lower daily limit
+ages out at 00:00 UTC. Unreconciled reservations and saved run limits retain
+their existing protections.
+
 The warning uses the same confirmed charges and outstanding reservations as
-daily admission. DemoLogic checks each paid generation against the remaining
-run, provider-account and shared daily allowances. A refusal reports the
-applicable scope and limit in `error.budget_limit`.
+daily admission. Radar rounds the amount displayed in the warning up to a whole
+dollar. DemoLogic uses the exact amounts when checking the remaining run,
+provider-account and shared daily allowances. A refusal reports the applicable
+scope and limit in `error.budget_limit`.
 
 The authenticated `GET /v1/spending/status` returns aggregate amounts and the
 effective shared ceiling, including any lower saved allowance that still

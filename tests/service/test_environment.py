@@ -96,6 +96,17 @@ def test_examples_and_compose_forward_the_supported_runtime_variables():
             assert name + "=" in example
 
 
+def test_example_paid_budget_applies_only_after_provider_enablement():
+    root = Path(__file__).resolve().parents[2]
+    values = dict(line.split("=", 1) for line in (root / "service/.env.example").read_text().splitlines()
+                  if line and not line.startswith("#"))
+    settings = runtime(**{**values, "DEMOLOGIC_SERVICE_TOKEN": "synthetic-token"})
+    assert settings.paid_warning_usd == "2.00"
+    assert settings.paid_period_usd == settings.paid_run_usd == settings.paid_account_usd == "10.00"
+    assert settings.mode == "demo"
+    assert not settings.gemini_enabled and not settings.openai_enabled
+
+
 def test_pydantic_settings_preserve_dataclass_callers_and_hide_failed_inputs():
     from dataclasses import FrozenInstanceError, asdict
 

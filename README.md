@@ -20,15 +20,14 @@ flowchart LR
     Radar --> Logic[DemoLogic: suggest tags or draft a briefing]
     Logic --> Model[Configured model provider]
     Model --> Logic
-    Logic --> Review[Demo Radar: staff review]
-    Review --> Public[Approved tags and briefings on the public map]
+    Logic --> Review[Demo Radar: tag review and briefing publication]
+    Review --> Public[Approved tags and published briefings on the public map]
 ```
 
 DemoLogic validates requests and saves answers, usage and recovery state. Demo
 Radar owns event data, background jobs, staff permissions and publication. The
-deployed tagging service uses Qwen on Hetzner with the v4 tagging guide. Gemini
-support is implemented for tagging and daily briefings, but is disabled in
-production as of 7 November 2026. Route repair remains future work.
+[provider guide](docs/provider-settings.md) lists the reviewed Hetzner Qwen,
+Google Gemini and OpenAI profiles and explains how to enable them.
 
 ## How it helps Demo Radar
 
@@ -38,9 +37,8 @@ briefing. I can keep the tags, change them or reject them before anything is
 published. Saved answers can be reused for matching events, and I can approve
 tagging rules for future dates.
 
-The daily briefing starts in German. Demo Radar translates it into English
-with DeepL, then both versions are reviewed before publication. Readers see
-the saved content; opening the map does not call the model again.
+Demo Radar supports manual review and automatic publication for daily
+briefings. Readers see the saved edition without another model call.
 
 ### Production tag review
 

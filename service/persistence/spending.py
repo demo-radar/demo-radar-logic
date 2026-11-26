@@ -31,6 +31,32 @@ def cost(input_tokens, output_tokens, price):
     )
 
 
+def daily_status(db, settings):
+    """Return the shared UTC-day warning and effective allowance without provider calls."""
+    if settings.mode != "live" or not settings.paid_warning_usd:
+        return None
+    try:
+        warning = money(settings.paid_warning_usd)
+        daily_limit = money(settings.paid_period_usd)
+    except ValueError:
+        return None
+    if not 0 < warning < daily_limit <= 10**12:
+        return None
+    used, saved_limit = db.execute(
+        "SELECT COALESCE(SUM(COALESCE(charged, reserved)), 0), "
+        "MIN(json_extract(policy, '$.period_limit')) "
+        "FROM spending WHERE period=? OR charged IS NULL",
+        (datetime.now(UTC).date().isoformat(),),
+    ).fetchone()
+    if saved_limit is not None:
+        daily_limit = min(daily_limit, saved_limit)
+    return {
+        "used_microusd": used,
+        "warning_microusd": warning,
+        "daily_limit_microusd": daily_limit,
+    }
+
+
 def policy(settings, config, *, input_tokens=None, output_tokens=None):
     """Return a complete operator-approved policy, or refuse before admission."""
     if settings.mode != "live":

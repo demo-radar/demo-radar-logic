@@ -402,6 +402,44 @@ def test_paid_run_and_shared_period_count_retries_and_other_tasks(tmp_path):
         assert len(calls) == 1
 
 
+def test_daily_spending_warning_allows_calls_until_the_hard_limit(tmp_path):
+    calls = []
+
+    def response(req):
+        calls.append(req)
+        return httpx.Response(200, json=answer(content="bad json", usage=False))
+
+    config = replace(
+        runtime(tmp_path),
+        paid_warning_usd="0.015",
+        paid_period_usd="0.033",
+    )
+    with TestClient(create_app(config, transport=gemini_transport(response))) as client:
+        path = "/v1/spending/status"
+        assert client.get(path).status_code == 401
+        assert client.get(path, headers=AUTH).json() == {
+            "spending": {
+                "used_microusd": 0,
+                "warning_microusd": 15000,
+                "daily_limit_microusd": 33000,
+            }
+        }
+        for number in (1, 2):
+            reply = client.post("/v1/tag-suggestions", headers=AUTH, json=gemini_request(number))
+            assert reply.status_code == 502, reply.text
+            status = client.get(path, headers=AUTH).json()["spending"]
+            assert status["used_microusd"] == 16136 * number > status["warning_microusd"]
+        blocked = client.post("/v1/tag-suggestions", headers=AUTH, json=gemini_request(3))
+        assert blocked.status_code == 429 and blocked.json()["error"]["code"] == "spending_limit"
+        assert len(calls) == 2
+
+    # A restart does not increase the effective spending limit for today's entries.
+    higher = replace(config, paid_period_usd="2")
+    with TestClient(create_app(higher, transport=gemini_transport(response))) as client:
+        assert client.get(path, headers=AUTH).json()["spending"]["daily_limit_microusd"] == 33000
+        assert len(calls) == 2
+
+
 def test_unknown_closure_does_not_release_money_and_settlement_is_audited(tmp_path):
     from datetime import UTC, datetime, timedelta
 

@@ -57,6 +57,7 @@ class Settings:
     paid_run_usd: str = ""
     paid_period_usd: str = ""
     paid_account_usd: str = ""
+    paid_warning_usd: str = ""
     environment: Literal["unspecified", "local", "staging", "production", "test"] = "unspecified"
     root: Path = Path(__file__).resolve().parents[1]
 
@@ -106,6 +107,7 @@ class Settings:
             paid_run_usd=os.environ.get("DEMOLOGIC_PAID_RUN_USD", ""),
             paid_period_usd=os.environ.get("DEMOLOGIC_PAID_PERIOD_USD", ""),
             paid_account_usd=os.environ.get("DEMOLOGIC_PAID_ACCOUNT_USD", ""),
+            paid_warning_usd=os.environ.get("DEMOLOGIC_PAID_WARNING_USD", ""),
         )
 
 

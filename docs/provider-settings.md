@@ -192,6 +192,12 @@ day; confirmed charges reset out of the daily allowance at midnight. Run allowan
 do not reset. Restarting, changing profiles/accounts or closing an unknown answer
 cannot erase spending history. Explicit retries reserve again.
 
+Set `DEMOLOGIC_PAID_WARNING_USD` below the configured daily ceiling to show
+a warning in Radar Support. The warning uses the same confirmed charges and
+outstanding reservations as daily admission and leaves admission decisions to the
+hard limits. The authenticated `GET /v1/spending/status` returns only aggregate
+amounts. An existing day's saved ceiling still applies after a restart.
+
 These are **single-journal controls**, not a distributed billing system. Use one
 persistent journal per paid account; other apps or hosts using that account are
 outside this ledger. Do not use account aliases or another journal to raise a cap.

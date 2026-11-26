@@ -14,6 +14,7 @@ from service.persistence.journal import AdmissionError
 from service.providers.base import ProviderFailure
 from service.summary.config import schema_claim_length
 from service.summary.contracts import SummaryDraft, SummaryResponse
+from service.tasks.limits import ExecutionLimits
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class SummaryService(InferenceService):
     """
 
     task = "daily-summary"
+    execution_limits = ExecutionLimits(max_job_attempts=30)
 
     async def suggest(self, request):
         """Return (saved draft, HTTP status); replay cannot create another call."""

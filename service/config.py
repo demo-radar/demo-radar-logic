@@ -30,7 +30,7 @@ class Settings:
     explicit constructor arguments in tests. Defaults use demo mode, 60-second
     timeout, one-second pacing and three attempts/event. Secrets are excluded
     from the object's repr. Raising attempts is an operator action, never an API
-    parameter; it does not remove the 40-event/30-attempt batch ceiling.
+    parameter. The tagging batch ceiling is 40 events and 40 attempts.
     """
 
     token: Annotated[str, Field(min_length=1)] = field(repr=False)

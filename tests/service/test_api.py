@@ -263,9 +263,7 @@ def test_private_journal_attempt_and_batch_caps(tmp_path):
         journal.begin(r, "identity-4", "event-key", 0)
     assert exc.value.code == "event_attempt_limit"
     other = Journal(tmp_path / "batch.sqlite")
-    from service.tasks.limits import MAX_JOB_ATTEMPTS
-
-    for n in range(MAX_JOB_ATTEMPTS):
+    for n in range(1, 41):
         r = TagRequest(**request(n))
         other.begin(r, str(n), str(n), 0)
         other.finish(r.request_id, {"tags": []}, 200, "ok")
@@ -661,6 +659,35 @@ def test_provider_factory_is_explicit_and_secrets_are_not_repr(tmp_path):
         create_provider(live_settings, config, None)
 
 
+def test_existing_job_keeps_its_saved_lower_batch_limit(tmp_path):
+    path = tmp_path / "existing-batch.sqlite"
+    execution = {
+        "task": "tagging",
+        "profile_id": "qwen-v4-v1",
+        "profile_sha256": "a" * 64,
+        "mode": "demo",
+        "origin": "manual_api",
+        "environment": "test",
+    }
+    journal = Journal(path)
+    first = TagRequest(**request())
+    journal.begin(first, "1", "1", 0, max_job_attempts=30, execution=execution, allowance_key="1")
+    journal.finish(first.request_id, {"tags": []}, 200, "ok")
+
+    journal = Journal(path)
+    for number in range(2, 31):
+        event = TagRequest(**request(number))
+        journal.begin(
+            event, str(number), str(number), 0, execution=execution, allowance_key=str(number)
+        )
+        journal.finish(event.request_id, {"tags": []}, 200, "ok")
+    with pytest.raises(AdmissionError) as exc:
+        journal.begin(
+            TagRequest(**request(31)), "31", "31", 0, execution=execution, allowance_key="31"
+        )
+    assert exc.value.code == "batch_limit"
+
+
 def test_higher_event_allowance_does_not_raise_total_batch_limit(tmp_path):
     journal = Journal(tmp_path / "batch-override.sqlite", max_attempts=5)
     from service.tasks.limits import MAX_JOB_ATTEMPTS
@@ -702,7 +729,7 @@ def test_save_conflict_never_claims_no_inference():
     assert "inference_admitted" not in json.loads(reply.body)
 
 
-@pytest.mark.parametrize("limit", [0, 31, 120, True])
+@pytest.mark.parametrize("limit", [0, 41, 120, True])
 def test_journal_rejects_job_allowances_outside_the_server_ceiling(tmp_path, limit):
     journal = Journal(tmp_path / "invalid-limit.sqlite")
     with pytest.raises(ValueError, match="Job attempts"):

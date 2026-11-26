@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-MAX_JOB_ATTEMPTS = 30
+MAX_JOB_ATTEMPTS = 40
 MAX_JOB_EVENTS = 40
 
 
